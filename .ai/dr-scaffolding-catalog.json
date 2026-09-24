@@ -1,0 +1,215 @@
+{
+  "schemaVersion": 2,
+  "updatedAt": "2026-09-16",
+  "defaults": {
+    "dotnetFramework": "net10.0",
+    "solutionFormat": "slnx",
+    "sourcePath": "src",
+    "testPath": "test",
+    "namePattern": "^[A-Za-z][A-Za-z0-9._-]{0,63}$"
+  },
+  "kinds": [
+    {
+      "id": "dotnet",
+      "label": "Progetto .NET",
+      "prerequisites": ["SDK .NET 10", "git", "PowerShell 7"]
+    },
+    {
+      "id": "node",
+      "label": "Progetto Node/frontend web",
+      "prerequisites": ["node", "npm", "git"]
+    },
+    {
+      "id": "embedded",
+      "label": "Firmware per microcontrollore",
+      "prerequisites": ["PlatformIO Core (pio)", "git", "driver seriale USB della scheda"]
+    },
+    {
+      "id": "content",
+      "label": "Contenuto documentale",
+      "prerequisites": ["git"]
+    },
+    {
+      "id": "any",
+      "label": "Qualsiasi progetto",
+      "prerequisites": ["git"]
+    }
+  ],
+  "domains": [
+    {
+      "id": "dotnet-backend",
+      "label": "Backend .NET (API, servizi, worker)",
+      "kind": "dotnet",
+      "packages": ["dr-dotnet-backend"],
+      "projectTypes": ["minimal-api", "worker-service", "classlib", "xunit-test"]
+    },
+    {
+      "id": "web-frontend",
+      "label": "Frontend web",
+      "kind": "node",
+      "packages": ["dr-fe"],
+      "projectTypes": ["vue-fe"]
+    },
+    {
+      "id": "devops",
+      "label": "Deploy, container e CI/CD",
+      "kind": "any",
+      "packages": ["dr-devops"],
+      "projectTypes": []
+    }
+  ],
+  "intentMap": [
+    {
+      "domain": "dotnet-backend",
+      "phrases": ["api rest", "minimal api", "endpoint", "backend", "windows service", "servizio windows", "worker", "servizio in background"]
+    },
+    {
+      "domain": "web-frontend",
+      "phrases": ["frontend", "interfaccia web", "sito", "applicazione web", "vue", "spa"]
+    },
+    {
+      "domain": "devops",
+      "phrases": ["deploy", "docker", "container", "swarm", "portainer", "pipeline", "ci/cd"]
+    }
+  ],
+  "fallback": {
+    "behavior": "dichiara-e-proponi",
+    "description": "Nessun dominio corrisponde all'intento dell'utente: non procedere assumendo uno stack. Dichiara che nessun pacchetto dr-* copre il dominio richiesto, proponi di proseguire con il solo core generico, e offri di aprire una issue di richiesta nuovo pacchetto sul repo dr-guidelines delegando a dr-file-feedback. Nessuna issue viene creata senza conferma esplicita dell'utente.",
+    "issueRepo": "davraf-amuro/dr-guidelines",
+    "skill": "dr-file-feedback"
+  },
+  "projectTypes": [
+    {
+      "id": "minimal-api",
+      "label": "Minimal API (.NET 10)",
+      "kind": "dotnet",
+      "dotnetTemplate": "web",
+      "targetPath": "src",
+      "defaultNameSuffix": ".api",
+      "suggestedPackages": ["dr-dotnet-backend", "dr-minimalapi"],
+      "optionalPackages": ["dr-efdb"],
+      "docs": "docs/scaffolding-minimal-api.md",
+      "notes": "Template 'web' (ASP.NET Core vuoto), non 'webapi': la struttura Endpoints/ parte dal template vuoto."
+    },
+    {
+      "id": "worker-service",
+      "label": "Windows Service / Worker (.NET 10)",
+      "kind": "dotnet",
+      "dotnetTemplate": "worker",
+      "targetPath": "src",
+      "defaultNameSuffix": ".service",
+      "suggestedPackages": ["dr-dotnet-backend", "dr-winsvc"],
+      "optionalPackages": ["dr-efdb"],
+      "docs": "docs/scaffolding-windows-service.md",
+      "notes": "Un file per worker in Workers/, ciascuno erede di BackgroundService."
+    },
+    {
+      "id": "classlib",
+      "label": "Class Library (.NET 10)",
+      "kind": "dotnet",
+      "dotnetTemplate": "classlib",
+      "targetPath": "src",
+      "defaultNameSuffix": ".core",
+      "suggestedPackages": ["dr-dotnet-backend"],
+      "optionalPackages": [],
+      "docs": null,
+      "notes": "Codice condiviso tra API e worker della stessa solution."
+    },
+    {
+      "id": "xunit-test",
+      "label": "Progetto di test xUnit (.NET 10)",
+      "kind": "dotnet",
+      "dotnetTemplate": "xunit",
+      "targetPath": "test",
+      "defaultNameSuffix": ".tests",
+      "suggestedPackages": [],
+      "optionalPackages": [],
+      "docs": null,
+      "notes": "Va in test/, non in src/. I template dotnet new scrivono UTF-8 con BOM: serve 'dotnet format' in scrittura prima del primo push."
+    },
+    {
+      "id": "vue-fe",
+      "label": "Frontend Vue 3 + Vite + TypeScript",
+      "kind": "node",
+      "nodeScaffolder": {
+        "command": "npm create vue@latest",
+        "argsTemplate": "<nome> -- --ts --router --pinia --eslint --prettier",
+        "postInstall": "npm install"
+      },
+      "targetPath": ".",
+      "defaultNameSuffix": "-fe",
+      "suggestedPackages": ["dr-fe"],
+      "optionalPackages": [],
+      "docs": null,
+      "notes": "I flag di create-vue sono booleani puri: '--vitest=false' fa fallire il comando. Va creato PRIMA dell'install del core, perche' scrive un proprio .editorconfig/.gitignore/.gitattributes. Lo script 'lint' generato usa --fix, quindi non vale come gate di verifica."
+    }
+  ],
+  "packages": [
+    {
+      "name": "dr-guidelines",
+      "repo": "davraf-amuro/dr-guidelines",
+      "isCore": true,
+      "dependencies": [],
+      "appliesTo": ["any"],
+      "description": "Core: instructions e skill trasversali, file di configurazione radice, sezione CLAUDE.md.",
+      "obsoleteArtifacts": [
+        ".claude/skills/dr-pianifica-issue",
+        ".claude/skills/dr-segnala-miglioria",
+        ".claude/skills/dr-tattico",
+        ".claude/skills/dr-CreateLaunchProfiles",
+        ".github/prompts/dr-pianifica-issue.prompt.md",
+        ".github/prompts/dr-segnala-miglioria.prompt.md"
+      ]
+    },
+    {
+      "name": "dr-dotnet-backend",
+      "repo": "davraf-amuro/dr-dotnet-backend",
+      "isCore": false,
+      "dependencies": [],
+      "appliesTo": ["dotnet"],
+      "rootFiles": ["Directory.Build.props", "global.json"],
+      "description": "Base backend .NET condivisa: skill dr-audit-api, file di progetto .NET comuni (Directory.Build.props, global.json)."
+    },
+    {
+      "name": "dr-minimalapi",
+      "repo": "davraf-amuro/dr-minimalapi",
+      "isCore": false,
+      "dependencies": ["dr-dotnet-backend"],
+      "appliesTo": ["dotnet"],
+      "description": "Architettura Minimal API, prompt endpoint e scaffolding CRUD."
+    },
+    {
+      "name": "dr-winsvc",
+      "repo": "davraf-amuro/dr-winsvc",
+      "isCore": false,
+      "dependencies": ["dr-dotnet-backend"],
+      "appliesTo": ["dotnet"],
+      "description": "Architettura Windows Service / Worker."
+    },
+    {
+      "name": "dr-efdb",
+      "repo": "davraf-amuro/dr-efdb",
+      "isCore": false,
+      "dependencies": [],
+      "appliesTo": ["dotnet"],
+      "description": "EF Core: provider database e resilienza in avvio.",
+      "mcpSuggestion": "db-schema"
+    },
+    {
+      "name": "dr-fe",
+      "repo": "davraf-amuro/dr-fe",
+      "isCore": false,
+      "dependencies": [],
+      "appliesTo": ["node"],
+      "description": "Organizzazione frontend e skill dr-audit-fe."
+    },
+    {
+      "name": "dr-devops",
+      "repo": "davraf-amuro/dr-devops",
+      "isCore": false,
+      "dependencies": [],
+      "appliesTo": ["any"],
+      "description": "Docker Swarm, Portainer, CI/CD GitLab."
+    }
+  ]
+}
