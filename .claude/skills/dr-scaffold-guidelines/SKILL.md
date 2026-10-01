@@ -44,7 +44,7 @@ Se la cartella corrente contiene sia `dr-guidelines-install.ps1` sia `dr-guideli
    2. `scaffolding-catalog.json` nella root del clone di `dr-guidelines` (cercalo tra le cartelle del workspace aperto)
    3. Nessuno dei due → chiedi il percorso del repo `dr-guidelines` e **fermati**
 5. Leggi `.ai/dr-guidelines-packages.json` (se assente: nessun pacchetto installato, è il caso normale al primo giro).
-6. Individua il percorso locale dei repo `dr-*`: in fase Private l'invocazione remota `irm ... | iex` **non funziona** (raw risponde 404), serve il path locale.
+6. Individua il percorso locale dei repo `dr-*`, se esiste. Senza clone locale usa la forma `gh api` descritta più sotto: funziona sia a repo Public sia Private, mentre `irm ... | iex` risponderebbe `404` su un repo Private.
 
 ---
 

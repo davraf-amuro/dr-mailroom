@@ -53,6 +53,12 @@ Ogni task segue il ciclo definito in `dev-cycle.instructions.md`:
 Task con >= 2 operazioni: crea piano su disco in `.ai/plans/<YYYY-MM-DD>-<slug>/` prima di procedere.
 Segui `plan-tracking.instructions.md` per struttura e verifica finale.
 
+## Brief dell'utente — cartella `briefs/`
+
+`briefs/` in radice contiene le richieste che l'utente scrive in Markdown, con nome e forma liberi. L'agente non la esplora da solo: usa il brief che l'utente indica nel prompt.
+
+Brief indicato → leggilo, chiedi approfondimenti se trovi lacune o problemi, crea **sempre** il piano (anche per una sola operazione) con il link al brief sotto il titolo, ed esegui solo dopo l'approvazione esplicita dell'utente. Vale anche quando il brief è l'argomento di un prompt. Regola completa: `plan-tracking.instructions.md`, sezione "Piani da un brief".
+
 ## Gate di Push — Verifica obbligatoria
 
 ⛔ Prima di qualsiasi `git push`, esegui il comando di verifica dichiarato dall'istruzione di dominio del progetto (lint, formattazione, analisi statica).
@@ -71,4 +77,4 @@ Nessun comando di verifica applicabile al progetto (per esempio un repository di
 
 > Regola assoluta: nessun `git push` senza verifica pulita o assenza di target dichiarata.
 
-*Template v2.0 - agnostico dallo stack - Token-optimized for AI agents* - Last Update 2026-09-16 — claude-opus-5
+*Template v2.0 - agnostico dallo stack - Token-optimized for AI agents* - Last Update 2026-09-24 — claude-opus-5-5

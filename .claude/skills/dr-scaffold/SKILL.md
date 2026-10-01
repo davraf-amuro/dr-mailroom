@@ -42,7 +42,7 @@ Verifica **solo** i prerequisiti del `kind` risolto nella Fase 0-pre, più quell
 ```powershell
 git --version     # sempre
 pwsh --version    # sempre
-gh auth status    # sempre: i repo dr-* sono Private
+gh auth status    # sempre: gli installer si scaricano con gh api
 dotnet --list-sdks    # solo kind dotnet
 node --version        # solo kind node, o frontend richiesto
 npm --version         # solo kind node, o frontend richiesto
@@ -53,7 +53,7 @@ pio --version         # solo kind embedded
 |---|---|---|---|
 | git | sempre | qualsiasi versione | STOP — serve per `git init` e per il clone dei pacchetti |
 | PowerShell 7+ | sempre | `7.*` | STOP — gli installer `<pacchetto>-install.ps1` girano su pwsh |
-| gh autenticato | sempre | `Logged in to github.com` | STOP — i repo `dr-*` sono Private: senza credenziali `git clone` fallisce |
+| gh autenticato | sempre | `Logged in to github.com` | STOP — gli installer si scaricano con `gh api`, che richiede `gh` autenticato |
 | .NET SDK 10.x | kind `dotnet` | almeno una riga `10.*` | STOP — nessun progetto .NET è creabile |
 | node + npm | kind `node`, o frontend richiesto | qualsiasi versione | STOP se il progetto è solo frontend; se è un pezzo di un progetto più grande, blocca solo quel pezzo |
 | PlatformIO Core | kind `embedded` | `PlatformIO Core, version ...` | STOP — nessun firmware è compilabile o caricabile sulla scheda |

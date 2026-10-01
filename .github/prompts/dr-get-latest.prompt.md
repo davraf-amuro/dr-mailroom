@@ -27,7 +27,7 @@ Leggi `.ai/dr-guidelines-packages.json` nella radice del progetto.
 
 ### 2. Verifica una volta sola come scaricare
 
-I repository `dr-*` sono Private: `raw.githubusercontent.com` risponde `404`. Controlla `gh auth status` **prima** del ciclo, così non ripeti lo stesso errore per ogni pacchetto.
+I repository `dr-*` sono Public dal 2026-09-21, ma se tornassero Private `raw.githubusercontent.com` risponderebbe `404`. Controlla `gh auth status` **prima** del ciclo, così non ripeti lo stesso errore per ogni pacchetto.
 
 - `gh` autenticato → usa la forma `gh api` per tutti i pacchetti.
 - Repository pubblici → la forma `Invoke-RestMethod` è sufficiente.
@@ -38,7 +38,7 @@ I repository `dr-*` sono Private: `raw.githubusercontent.com` risponde `404`. Co
 Per ogni voce del manifest, con `<package>` sostituito dal nome del pacchetto:
 
 ```powershell
-# repository Private (caso normale oggi)
+# gh autenticato (forma provata sul campo, vale anche su repository Private)
 & ([scriptblock]::Create((gh api repos/davraf-amuro/<package>/contents/<package>-install.ps1 -H "Accept: application/vnd.github.raw" | Out-String))) -Update
 
 # repository pubblici

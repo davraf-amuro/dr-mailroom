@@ -66,7 +66,7 @@ pio --version        # solo kind embedded
 |---|---|---|---|
 | git | sempre | qualsiasi versione | STOP |
 | PowerShell 7+ | sempre | `7.*` | STOP |
-| gh autenticato | sempre | `Logged in to github.com` | STOP — i repo `dr-*` sono Private |
+| gh autenticato | sempre | `Logged in to github.com` | STOP — gli installer si scaricano con `gh api`, che richiede `gh` autenticato |
 | .NET SDK 10.x | kind `dotnet` | almeno una riga `10.*` | STOP |
 | node + npm | kind `node`, o frontend richiesto | qualsiasi versione | STOP se il progetto è solo frontend, altrimenti blocca solo quel pezzo |
 | PlatformIO Core | kind `embedded` | `PlatformIO Core, version ...` | STOP |

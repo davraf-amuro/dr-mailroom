@@ -14,6 +14,8 @@ Ogni richiesta di modifica (codice, config, docs, test) con **≥ 2 operazioni**
 
 Per operazione singola: dichiarazione inline dev-cycle Fase 1 è sufficiente — nessun piano su disco richiesto.
 
+Eccezione: task avviato da un brief → piano sempre obbligatorio, a prescindere dal numero di operazioni (vedi "Piani da un brief").
+
 ---
 
 ## Fase 0: CREA PIANO SU DISCO (prima di EnterPlanMode)
@@ -34,6 +36,7 @@ Per operazione singola: dichiarazione inline dev-cycle Fase 1 è sufficiente —
 
 ```markdown
 # Piano: <titolo task>
+Brief: [<nome-file>.md](../../../briefs/<nome-file>.md)   ← solo se il piano nasce da un brief
 Data: <YYYY-MM-DD>
 Stato: IN CORSO
 
@@ -138,6 +141,24 @@ Prima di scrivere un piano da una issue, cerca `Issue: <owner/repo>#<n>` (anche 
 
 ---
 
+## Piani da un brief
+
+`briefs/`, in radice del progetto, è la cartella dove l'utente scrive le proprie richieste, in Markdown, con il nome e la forma che preferisce. La crea vuota l'installer del core. Un brief esprime un bisogno: dice **cosa** serve; il piano dice **come** si fa.
+
+L'agente non esplora `briefs/` di sua iniziativa: usa solo il brief che l'utente gli indica nel prompt.
+
+Quando l'utente indica un brief:
+
+1. Leggi il brief per intero.
+2. Se trovi problemi, lacune o ambiguità, o se lo ritieni opportuno, chiedi all'utente gli approfondimenti necessari a scrivere il piano. Non colmare le lacune per supposizione.
+3. Crea **sempre** il piano su disco, anche se il lavoro richiede una sola operazione. Sotto il titolo metti il link relativo al brief (riga `Brief:` del template).
+4. Sottoponi il piano all'utente: l'esecuzione parte **solo** dopo la sua approvazione esplicita.
+5. Non modificare il brief: è un file dell'utente.
+
+Vale anche quando il brief è l'argomento di una skill o di un prompt invocato esplicitamente: l'invocazione non sostituisce l'approvazione del piano.
+
+---
+
 ## Regole esecutore (agente che esegue il piano)
 
 1. **Un passo = un intento.** Passo che richiede giudizio architetturale non è eseguibile → STOP, rimanda al planner.
@@ -158,4 +179,4 @@ Prima di scrivere un piano da una issue, cerca `Issue: <owner/repo>#<n>` (anche 
 
 ---
 
-*Istruzione v1.5 - Plan Tracking - 2026-09-22 — claude-opus-5 — aggiunti lo stato `PROPOSTO`, il campo `Issue:` e il principio "scrivere un piano non significa eseguirlo"; chiarito che il divieto di nuovo piano riguarda l'apertura in esecuzione*
+*Istruzione v1.6 - Plan Tracking - 2026-09-24 — claude-opus-5-5 — aggiunti la cartella `briefs/`, la sezione "Piani da un brief" (piano sempre obbligatorio e approvato) e il link al brief sotto il titolo del piano*

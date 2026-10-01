@@ -1,9 +1,9 @@
-﻿{
-    "installed":  [
-                      {
-                          "package":  "dr-guidelines",
-                          "installedAt":  "2026-09-24",
-                          "commit":  "e98848dbca79b7b6b548098c22080fa87fa97ef4"
-                      }
-                  ]
+{
+  "installed": [
+    {
+      "package": "dr-guidelines",
+      "installedAt": "2026-09-24",
+      "commit": "5cb0f8049fe17c479ec701ed1341e82caa8ddfc8"
+    }
+  ]
 }
