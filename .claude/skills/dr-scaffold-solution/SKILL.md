@@ -67,8 +67,9 @@ L'unità di installazione è il **repository**, non il progetto. I file del core
 Per ogni repository che nascerà (uno solo, o backend + frontend nel caso multi-repo):
 
 1. Pre-seleziona i pacchetti da `suggestedPackages[]` delle tipologie scelte per quel repo, più il core `dr-guidelines` (sempre).
-2. Mostra `optionalPackages[]` come non selezionati (es. `dr-efdb` per progetti .NET, `dr-devops` se serve CI/CD o Docker).
+2. Mostra `optionalPackages[]` come non selezionati (es. `dr-efdb` per progetti .NET, `dr-devops` se il deploy è su Docker Swarm/Portainer o la pipeline è GitLab CI/CD; Docker su host singolo non è ancora coperto, dr-devops#1).
 3. Non elencare le dipendenze: le risolve l'installer dal proprio registry (`dr-minimalapi` tira `dr-dotnet-backend` da sé). Elencarle a mano crea solo confusione nel manifest.
+4. Per ogni pacchetto proposto, leggi `suggests[]` nel catalogo e scarta le voci già proposte per quel repo. Suggerito con `appliesTo` compatibile con lo stack del repo (contiene `any` o il kind del repo) → mostralo **non selezionato**, con accanto il `reason`. Incompatibile → una riga informativa, senza domanda (es. nel repo frontend: «`dr-fe` suggerisce `dr-minimalapi`: senza, lo schema di login va concordato a mano con chi sviluppa l'API — si installa nel repository dell'API»). Nel caso multi-repo, se il suggerito è già fra i pacchetti dell'altro repo, dillo nella riga informativa.
 
 ---
 

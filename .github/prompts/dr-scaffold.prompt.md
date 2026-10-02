@@ -119,6 +119,8 @@ L'unità di installazione è il **repository**, non il progetto: i file del core
 
 Per ogni repository che nascerà, proponi come pre-selezionati il core `dr-guidelines` più i `suggestedPackages[]` delle tipologie scelte per quel repo; mostra `optionalPackages[]` come non selezionati. **Non elencare le dipendenze**: le risolve l'installer dal proprio registry.
 
+**Suggeriti.** Per ogni pacchetto proposto, leggi `suggests[]` nel catalogo e scarta le voci già proposte per quel repo. Suggerito con `appliesTo` compatibile con lo stack del repo (contiene `any` o il kind del repo) → mostralo **non selezionato**, con accanto il `reason`. Incompatibile → una riga informativa, senza domanda (es. nel repo frontend: «`dr-fe` suggerisce `dr-minimalapi`: senza, lo schema di login va concordato a mano con chi sviluppa l'API — si installa nel repository dell'API»).
+
 ### A.3 Dry-run e conferma unica
 
 Mostra l'albero completo, i comandi in ordine e i pacchetti per repo. Poi **una sola** domanda di conferma. Dopo la conferma non chiedere più nulla, salvo divergenze reali.
@@ -294,7 +296,7 @@ dotnet add <targetPath>\<consumatore>\<consumatore>.csproj reference <targetPath
 | `Workers/*.cs` | orientato a `dr-winsvc` |
 | `Endpoints/*.cs` | orientato a `dr-minimalapi` |
 
-4. Leggi `.ai/dr-guidelines-packages.json` (assente = nessun pacchetto installato, normale al primo giro) e marca ogni pacchetto come: già installato · consigliato · opzionale. Il core `dr-guidelines` va sempre incluso se manca.
+4. Leggi `.ai/dr-guidelines-packages.json` (assente = nessun pacchetto installato, normale al primo giro) e marca ogni pacchetto come: già installato · consigliato · opzionale · suggerito. Il core `dr-guidelines` va sempre incluso se manca. **Suggerito** = voce di `suggests[]` di un pacchetto scelto o già installato, assente dal manifest: con `appliesTo` compatibile con lo stack rilevato va nella selezione **non preselezionato**, con accanto il `reason`; incompatibile → una riga informativa, senza domanda. Un suggerito non si installa mai senza che l'utente lo scelga.
 5. Mostra la selezione, chiedi una conferma, poi:
 
 ```powershell

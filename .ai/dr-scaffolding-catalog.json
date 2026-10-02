@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "updatedAt": "2026-09-16",
+  "updatedAt": "2026-10-02",
   "defaults": {
     "dotnetFramework": "net10.0",
     "solutionFormat": "slnx",
@@ -52,7 +52,7 @@
     },
     {
       "id": "devops",
-      "label": "Deploy, container e CI/CD",
+      "label": "Deploy Docker Swarm/Portainer e CI/CD GitLab",
       "kind": "any",
       "packages": ["dr-devops"],
       "projectTypes": []
@@ -69,7 +69,7 @@
     },
     {
       "domain": "devops",
-      "phrases": ["deploy", "docker", "container", "swarm", "portainer", "pipeline", "ci/cd"]
+      "phrases": ["docker swarm", "swarm", "portainer", "stack portainer", "deploy su swarm", "gitlab ci", "pipeline gitlab", "ci/cd gitlab"]
     }
   ],
   "fallback": {
@@ -87,7 +87,7 @@
       "targetPath": "src",
       "defaultNameSuffix": ".api",
       "suggestedPackages": ["dr-dotnet-backend", "dr-minimalapi"],
-      "optionalPackages": ["dr-efdb"],
+      "optionalPackages": ["dr-efdb", "dr-devops"],
       "docs": "docs/scaffolding-minimal-api.md",
       "notes": "Template 'web' (ASP.NET Core vuoto), non 'webapi': la struttura Endpoints/ parte dal template vuoto."
     },
@@ -99,7 +99,7 @@
       "targetPath": "src",
       "defaultNameSuffix": ".service",
       "suggestedPackages": ["dr-dotnet-backend", "dr-winsvc"],
-      "optionalPackages": ["dr-efdb"],
+      "optionalPackages": ["dr-efdb", "dr-devops"],
       "docs": "docs/scaffolding-windows-service.md",
       "notes": "Un file per worker in Workers/, ciascuno erede di BackgroundService."
     },
@@ -192,6 +192,9 @@
       "isCore": false,
       "dependencies": [],
       "appliesTo": ["dotnet"],
+      "suggests": [
+        { "package": "dr-minimalapi", "reason": "senza, il Service layer segue il ripiego generico invece della regola 12 dell'architettura Minimal API" }
+      ],
       "description": "EF Core: provider database e resilienza in avvio.",
       "mcpSuggestion": "db-schema"
     },
@@ -201,6 +204,9 @@
       "isCore": false,
       "dependencies": [],
       "appliesTo": ["node"],
+      "suggests": [
+        { "package": "dr-minimalapi", "reason": "senza, lo schema di login va concordato a mano con chi sviluppa l'API" }
+      ],
       "description": "Organizzazione frontend e skill dr-audit-fe."
     },
     {
@@ -209,6 +215,9 @@
       "isCore": false,
       "dependencies": [],
       "appliesTo": ["any"],
+      "suggests": [
+        { "package": "dr-minimalapi", "reason": "senza, Data Protection e forwarded headers lato codice restano due requisiti da configurare a mano" }
+      ],
       "description": "Docker Swarm, Portainer, CI/CD GitLab."
     }
   ]

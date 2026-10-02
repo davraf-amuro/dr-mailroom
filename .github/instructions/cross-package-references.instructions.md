@@ -31,16 +31,39 @@ Forma minima della dichiarazione, una riga:
 
 > `dr-minimalapi` non risulta nel manifest: applico il ripiego di `docker-swarm-compose.instructions.md` invece della fonte unica.
 
+## Ogni rimando condizionale si dichiara anche nel catalogo
+
+Il rimando scritto nel testo lo legge solo l'agente che apre quel file. Installer, skill e prompt di scaffolding leggono il catalogo: per loro un rimando che esiste solo nel testo non c'è.
+
+⛔ Chi scrive un rimando condizionale verso `<pacchetto>` lo dichiara anche in `scaffolding-catalog.json`, nel campo `suggests` del pacchetto citante:
+
+```json
+"suggests": [
+  { "package": "dr-minimalapi", "reason": "senza, lo schema di login va concordato a mano con chi sviluppa l'API" }
+]
+```
+
+- **`package`**: il pacchetto citato. Deve esistere nel catalogo, essere diverso dal citante e non comparire anche in `dependencies`.
+- **`reason`**: obbligatorio, una riga. Dice **cosa manca** senza il pacchetto citato, non ripete cosa fa il pacchetto: è la frase che installer e skill mostrano a chi deve decidere se installarlo.
+
+Cosa ne fanno gli strumenti:
+
+- **L'installer** non installa mai un suggerito e non chiede nulla: a fine installazione stampa una riga `[sugg]` con il `reason` per ogni suggerito che manca dal manifest.
+- **Skill e prompt di scaffolding** lo propongono nella scelta dei pacchetti, non preselezionato, se il suo `appliesTo` è compatibile con lo stack del progetto; altrimenti lo citano in una riga informativa.
+- **La CI** blocca un `suggests` malformato (pacchetto inesistente, verso sé stesso, duplicato in `dependencies`, `reason` vuoto). Un controllo settimanale non bloccante confronta il testo delle istruzioni col catalogo e segnala i rimandi senza `suggests` e i `suggests` senza rimando.
+
+`suggests` non ha vincoli di `appliesTo`: un pacchetto `node` che suggerisce un pacchetto `dotnet` è il caso normale, perché il suggerito di solito vive in un altro repository.
+
 ## Quando invece serve una dipendenza dichiarata
 
 Un rimando condizionale è la regola. La dipendenza nel catalogo (`scaffolding-catalog.json`, campo `dependencies`) serve solo quando il pacchetto citante **non ha senso** senza quello citato, non quando lo cita e basta.
 
 ⛔ Prima di dichiarare una dipendenza, verifica due cose:
 
-- **L'installer risolve le dipendenze in automatico e in modo ricorsivo**, senza chiedere conferma: dichiararne una significa installare quel pacchetto e tutti i suoi antenati in ogni host che riceve il citante.
-- **L'installer non legge `appliesTo`.** Una dipendenza da un pacchetto `dotnet` dichiarata su un pacchetto `node` o `any` porta i file di progetto .NET nella radice di un host che .NET non è.
+- **L'installer risolve le dipendenze in modo ricorsivo e le installa di default.** Prima di clonare annuncia l'albero completo, una riga `[dep]` per dipendenza, ma non chiede conferma: dichiararne una significa installare quel pacchetto e tutti i suoi antenati in ogni host che riceve il citante. Solo chi lancia l'installer con `-NoDependencies` le salta, ricevendole elencate come `[skip]`.
+- **L'installer non conosce lo stack dell'host.** Una dipendenza da un pacchetto `dotnet` dichiarata su un pacchetto `node` o `any` porterebbe i file di progetto .NET nella radice di un host che .NET non è. Per questo la CI del catalogo rifiuta una dipendenza il cui `appliesTo` non copre quello del citante.
 
-Se i due pacchetti hanno `appliesTo` diversi, la dipendenza dichiarata è quasi sempre la scelta sbagliata.
+Se i due pacchetti hanno `appliesTo` diversi, la dipendenza è la scelta sbagliata, e ora il guard del catalogo la blocca: il rapporto giusto è un rimando condizionale, dichiarato in `suggests`.
 
 ## Regole di perimetro
 
@@ -50,4 +73,4 @@ Se i due pacchetti hanno `appliesTo` diversi, la dipendenza dichiarata è quasi 
 
 ---
 
-*Istruzione v1.0 - Rimandi fra pacchetti - 2026-09-24 — claude-opus-5*
+*Istruzione v1.1 - Rimandi fra pacchetti - 2026-10-02 — claude-opus-5-5*
