@@ -1,5 +1,7 @@
 using dr_mailroom_core.Enums;
 using dr_mailroom_core.Gmail;
+using dr_mailroom_core.Infrastructure.Mailroom;
+using dr_mailroom_core.Infrastructure.Mailroom.Entities;
 using dr_mailroom_core.Runs;
 using dr_mailroom_tests.Ingestion;
 using Microsoft.EntityFrameworkCore;
@@ -191,5 +193,100 @@ public sealed class RunOrchestratorTests : IAsyncDisposable
         Assert.Equal(RunStatus.Failed, run.Status);
         await using var db = _harness.Db.CreateDbContext();
         Assert.Equal(500UL, (await db.Mailboxes.SingleAsync()).HistoryId);
+    }
+
+    /// <summary>Crea un giro ed eseguilo con il token del job indicato.</summary>
+    private async Task<Run> ExecuteWithJobTokenAsync(int mailboxId, CancellationToken jobToken)
+    {
+        long runId;
+        await using (var scope = _harness.Services.CreateAsyncScope())
+        {
+            runId = await scope.ServiceProvider.GetRequiredService<RunProvider>()
+                .CreateRunAsync(mailboxId, RunTrigger.Manual, null, null, CancellationToken.None);
+        }
+
+        await using (var scope = _harness.Services.CreateAsyncScope())
+        {
+            await scope.ServiceProvider.GetRequiredService<RunOrchestrator>().ExecuteAsync(runId, jobToken);
+        }
+
+        await using var db = _harness.Db.CreateDbContext();
+        return await db.Runs.SingleAsync(r => r.Id == runId);
+    }
+
+    [Fact]
+    public async Task CancelDuringIngestion_ClosesRunCancelled_AndNextRunResumesAsync()
+    {
+        var session = await _harness.AddMailboxAsync(1);
+        session.Pages[string.Empty] = new MessageIdPage(["a", "b"], null);
+        session.MetadataReached = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        var running = _harness.RunAsync(1, RunTrigger.Manual);
+        await session.MetadataReached.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        long runId;
+        await using (var db = _harness.Db.CreateDbContext())
+        {
+            runId = await db.Runs.Where(r => r.Status == RunStatus.Running).Select(r => r.Id).SingleAsync();
+        }
+
+        Assert.True(_harness.Services.GetRequiredService<RunCancellationRegistry>().TryCancel(runId));
+        var cancelled = await running.WaitAsync(TimeSpan.FromSeconds(5));
+
+        Assert.Equal(RunStatus.Cancelled, cancelled.Status);
+        Assert.Equal(RunOrchestrator.RunCancelledMessage, cancelled.ErrorSummary);
+        Assert.NotNull(cancelled.EndedAtUtc);
+
+        // Lock rilasciato e registro ripulito: il giro successivo riprende il backfill e lo completa
+        session.MetadataReached = null;
+        var next = await _harness.RunAsync(1, RunTrigger.Manual);
+        Assert.Equal(RunStatus.Completed, next.Status);
+        Assert.False(_harness.Services.GetRequiredService<RunCancellationRegistry>().TryCancel(runId));
+        await using var check = _harness.Db.CreateDbContext();
+        Assert.Equal(2, await check.Messages.CountAsync());
+        Assert.Null((await check.Mailboxes.SingleAsync()).LastError);
+    }
+
+    [Fact]
+    public async Task CancelledJobToken_ClosesRunCancelledAsync()
+    {
+        var session = await _harness.AddMailboxAsync(1);
+        session.Pages[string.Empty] = new MessageIdPage(["a"], null);
+
+        var run = await ExecuteWithJobTokenAsync(1, new CancellationToken(canceled: true));
+
+        Assert.Equal(RunStatus.Cancelled, run.Status);
+        Assert.Equal(RunOrchestrator.RunCancelledMessage, run.ErrorSummary);
+        Assert.Empty(session.RequestedPageTokens);
+    }
+
+    [Fact]
+    public async Task ServiceStopping_ClosesRunCancelledWithStopReasonAsync()
+    {
+        var session = await _harness.AddMailboxAsync(1);
+        session.Pages[string.Empty] = new MessageIdPage(["a"], null);
+        _harness.Services.GetRequiredService<RunCancellationRegistry>().CancelAll();
+
+        var run = await ExecuteWithJobTokenAsync(1, CancellationToken.None);
+
+        Assert.Equal(RunStatus.Cancelled, run.Status);
+        Assert.Equal(RunOrchestrator.ServiceStoppingMessage, run.ErrorSummary);
+    }
+
+    [Fact]
+    public async Task PausedMailbox_RunIsSkipped_AndNothingIsReadAsync()
+    {
+        var session = await _harness.AddMailboxAsync(1);
+        session.Pages[string.Empty] = new MessageIdPage(["a"], null);
+        await using (var db = _harness.Db.CreateDbContext())
+        {
+            (await db.Mailboxes.SingleAsync()).Status = MailboxStatus.Disabled;
+            await db.SaveChangesAsync();
+        }
+
+        var run = await _harness.RunAsync(1, RunTrigger.Manual);
+
+        Assert.Equal(RunStatus.Skipped, run.Status);
+        Assert.Equal(RunOrchestrator.MailboxPausedMessage, run.ErrorSummary);
+        Assert.Empty(session.RequestedPageTokens);
     }
 }

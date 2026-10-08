@@ -7,4 +7,5 @@ public enum RunStatus
     Completed,
     Failed,
     Skipped,
+    Cancelled,
 }

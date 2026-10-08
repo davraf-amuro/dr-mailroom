@@ -15,6 +15,14 @@ x-api-key: {{apiKey}}
 GET {{baseUrl}}/api/v1/mailboxes/connect
 x-api-key: {{apiKey}}
 
+### Pausa di una casella (nessun giro finché non si riprende; annulla i giri in corso)
+POST {{baseUrl}}/api/v1/mailboxes/1/pause
+x-api-key: {{apiKey}}
+
+### Ripresa di una casella in pausa
+POST {{baseUrl}}/api/v1/mailboxes/1/resume
+x-api-key: {{apiKey}}
+
 ### Eliminazione logica di una casella
 DELETE {{baseUrl}}/api/v1/mailboxes/1
 x-api-key: {{apiKey}}
@@ -66,6 +74,14 @@ Content-Type: application/json
 
 ### Cronologia giri
 GET {{baseUrl}}/api/v1/runs
+x-api-key: {{apiKey}}
+
+### Annulla un giro in corso
+POST {{baseUrl}}/api/v1/runs/4/cancel
+x-api-key: {{apiKey}}
+
+### Annulla tutti i giri in corso
+POST {{baseUrl}}/api/v1/runs/cancel
 x-api-key: {{apiKey}}
 
 ### Statistiche per mittente

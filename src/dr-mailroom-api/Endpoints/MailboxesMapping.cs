@@ -56,6 +56,22 @@ public static class MailboxesMapping
             .WithSummary("Callback OAuth Google")
             .WithDescription("Riceve code e state da Google, salva il refresh token cifrato e reindirizza al frontend con l'esito in query string (oauth=ok|error).");
 
+        group.MapPost("/{id:int}/pause", PauseHandlerAsync)
+            .Produces(StatusCodes.Status204NoContent)
+            .Produces<ProblemDetails>(StatusCodes.Status404NotFound)
+            .Produces<ProblemDetails>(StatusCodes.Status409Conflict)
+            .WithName("PostMailboxPause")
+            .WithSummary("Mette in pausa la casella")
+            .WithDescription("Stato Disabled: nessun giro (cron, manuale, riapplica) finché non si riprende, anche dopo un riavvio. Annulla i giri in corso della casella. Idempotente. 404 se non esiste, 409 se eliminata o con token revocato.");
+
+        group.MapPost("/{id:int}/resume", ResumeHandlerAsync)
+            .Produces(StatusCodes.Status204NoContent)
+            .Produces<ProblemDetails>(StatusCodes.Status404NotFound)
+            .Produces<ProblemDetails>(StatusCodes.Status409Conflict)
+            .WithName("PostMailboxResume")
+            .WithSummary("Riprende la casella in pausa")
+            .WithDescription("Stato Disabled → Active: la casella torna nei giri dal prossimo scatto del cron; il backfill riprende dalla pagina salvata. Idempotente su Active. 404 se non esiste, 409 se non è in pausa.");
+
         group.MapDelete("/{id:int}", DeleteHandlerAsync)
             .Produces(StatusCodes.Status204NoContent)
             .Produces<ProblemDetails>(StatusCodes.Status404NotFound)
@@ -106,6 +122,20 @@ public static class MailboxesMapping
     private static async Task<IResult> CallbackHandlerAsync(
         [FromQuery] string? code, [FromQuery] string? state, [FromQuery] string? error, MailboxService service, CancellationToken cancellationToken) =>
         TypedResults.Redirect(await service.HandleCallbackAsync(code, state, error, cancellationToken));
+
+    /// <summary>Pausa della casella.</summary>
+    private static async Task<IResult> PauseHandlerAsync(int id, MailboxService service, CancellationToken cancellationToken)
+    {
+        var result = await service.PauseAsync(id, cancellationToken);
+        return result.Outcome == ServiceOutcome.Ok ? TypedResults.NoContent() : EndpointResults.Failure(result);
+    }
+
+    /// <summary>Ripresa della casella.</summary>
+    private static async Task<IResult> ResumeHandlerAsync(int id, MailboxService service, CancellationToken cancellationToken)
+    {
+        var result = await service.ResumeAsync(id, cancellationToken);
+        return result.Outcome == ServiceOutcome.Ok ? TypedResults.NoContent() : EndpointResults.Failure(result);
+    }
 
     /// <summary>Eliminazione logica (D18).</summary>
     private static async Task<IResult> DeleteHandlerAsync(int id, MailboxService service, CancellationToken cancellationToken)

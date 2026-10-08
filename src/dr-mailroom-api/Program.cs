@@ -11,6 +11,7 @@ using dr_mailroom_core;
 using dr_mailroom_core.Configuration;
 using dr_mailroom_core.Gmail;
 using dr_mailroom_core.Infrastructure.Mailroom;
+using dr_mailroom_core.Runs;
 using dr_mailroom_core.Security;
 using Scalar.AspNetCore;
 using Serilog;
@@ -119,6 +120,10 @@ app.MapRunsEndpoints(versionSet);
 app.MapStatsEndpoints(versionSet);
 app.MapAlertsEndpoints(versionSet);
 app.MapMessagesEndpoints(versionSet);
+
+// Arresto: annullo i giri in corso prima che Quartz li attenda, così si chiudono Cancelled invece di essere uccisi
+var cancellationRegistry = app.Services.GetRequiredService<RunCancellationRegistry>();
+app.Lifetime.ApplicationStopping.Register(cancellationRegistry.CancelAll);
 
 // Inizializzazione resiliente: DB giù → l'API parte in stato degradato (status e retry restano raggiungibili)
 var databaseStartup = app.Services.GetRequiredService<DatabaseStartupService>();

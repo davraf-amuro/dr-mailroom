@@ -143,6 +143,26 @@ public class MailboxProvider(
         return mailbox.Id;
     }
 
+    /// <summary>Cambia lo stato della casella (pausa = Disabled, ripresa = Active). False se non esiste.</summary>
+    public async Task<bool> SetStatusAsync(int mailboxId, MailboxStatus status, CancellationToken cancellationToken)
+    {
+        // Leggo da DB la casella con tracking
+        var mailbox = await context.Mailboxes.AsTracking()
+            .FirstOrDefaultAsync(m => m.Id == mailboxId, cancellationToken);
+        if (mailbox is null)
+        {
+            return false;
+        }
+
+        mailbox.Status = status;
+
+        // Scrivo su DB il nuovo stato
+        await context.SaveChangesAsync(cancellationToken);
+
+        logger.LogInformation("Casella {MailboxId}: stato {Status}", mailboxId, status);
+        return true;
+    }
+
     /// <summary>Eliminazione logica (D18): stato Deleted e refresh token rimosso; i dati restano. False se non esiste.</summary>
     public async Task<bool> MarkDeletedAsync(int mailboxId, CancellationToken cancellationToken)
     {

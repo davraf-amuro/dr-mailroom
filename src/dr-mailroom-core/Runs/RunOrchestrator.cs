@@ -14,7 +14,7 @@ namespace dr_mailroom_core.Runs;
 /// Esegue un giro su una casella: lock → ingestione (produttore) → coda FIFO → filtri e processi in parallelo (giro normale),
 /// oppure lock → messaggi già indicizzati del filtro (produttore) → coda → processi richiesti (riapplica, D13).
 /// Una sola sessione Gmail per giro, condivisa da produttore e consumatori: un solo limitatore di quota per casella.
-/// Non rilancia mai, salvo cancellazione: l'esito finisce su Run e Mailbox.
+/// Non rilancia mai: l'esito finisce su Run e Mailbox. Un giro annullato (API o arresto del servizio) chiude Cancelled.
 /// </summary>
 public class RunOrchestrator(
     IMailboxLock mailboxLock,
@@ -26,6 +26,7 @@ public class RunOrchestrator(
     MessageProcessingQueue processingQueue,
     IGmailReader gmailReader,
     ITokenProtector tokenProtector,
+    RunCancellationRegistry cancellationRegistry,
     ILogger<RunOrchestrator> logger)
 {
     /// <summary>Messaggio registrato sul giro quando la casella è occupata.</summary>
@@ -34,11 +35,40 @@ public class RunOrchestrator(
     /// <summary>Messaggio registrato sul giro quando la casella è eliminata (D18).</summary>
     public const string MailboxDeletedMessage = "Casella eliminata: nessun giro";
 
+    /// <summary>Messaggio registrato sul giro quando la casella è in pausa (Disabled).</summary>
+    public const string MailboxPausedMessage = "Casella in pausa: nessun giro";
+
+    /// <summary>Messaggio registrato sul giro annullato via API.</summary>
+    public const string RunCancelledMessage = "Giro annullato su richiesta";
+
+    /// <summary>Messaggio registrato sul giro annullato dall'arresto del servizio.</summary>
+    public const string ServiceStoppingMessage = "Giro annullato dall'arresto del servizio";
+
     /// <summary>Separatore dei processi in Run.RequestedProcesses.</summary>
     public const char ProcessSeparator = ',';
 
-    /// <summary>Esegue il giro indicato e ne registra l'esito.</summary>
+    /// <summary>Esegue il giro indicato e ne registra l'esito; annullabile tramite RunCancellationRegistry.</summary>
     public async Task ExecuteAsync(long runId, CancellationToken cancellationToken)
+    {
+        // Registro il giro prima di leggerne lo stato: un annullamento arrivato nel frattempo non va perso
+        using var registration = cancellationRegistry.Register(runId, cancellationToken);
+        var runToken = registration.Token;
+        try
+        {
+            await ExecuteRegisteredAsync(runId, runToken);
+        }
+        catch (OperationCanceledException) when (runToken.IsCancellationRequested)
+        {
+            var reason = cancellationRegistry.IsShuttingDown ? ServiceStoppingMessage : RunCancelledMessage;
+            logger.LogInformation("Giro {RunId} annullato: {Reason}", runId, reason);
+
+            // Scrivo su DB la chiusura Cancelled, se nessuno l'ha già chiuso; il token del giro è annullato, quindi None
+            await runProvider.CancelRunIfRunningAsync(runId, reason, CancellationToken.None);
+        }
+    }
+
+    /// <summary>Corpo del giro, con il token del registro.</summary>
+    private async Task ExecuteRegisteredAsync(long runId, CancellationToken cancellationToken)
     {
         // Leggo da DB il giro da eseguire
         var run = await runProvider.GetRunForUpdateAsync(runId, cancellationToken)
@@ -50,10 +80,12 @@ public class RunOrchestrator(
             return;
         }
 
-        // Leggo da DB lo stato della casella: una casella eliminata non si lavora più (D18)
-        if (await mailboxProvider.GetMailboxStatusAsync(run.MailboxId, cancellationToken) == MailboxStatus.Deleted)
+        // Leggo da DB lo stato della casella: eliminata (D18) o in pausa non si lavora
+        var mailboxStatus = await mailboxProvider.GetMailboxStatusAsync(run.MailboxId, cancellationToken);
+        if (mailboxStatus is MailboxStatus.Deleted or MailboxStatus.Disabled)
         {
-            await runProvider.FinishRunAsync(runId, RunStatus.Skipped, null, 0, 0, MailboxDeletedMessage, cancellationToken);
+            var reason = mailboxStatus == MailboxStatus.Deleted ? MailboxDeletedMessage : MailboxPausedMessage;
+            await runProvider.FinishRunAsync(runId, RunStatus.Skipped, null, 0, 0, reason, cancellationToken);
             return;
         }
 

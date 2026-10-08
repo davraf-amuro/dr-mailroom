@@ -31,6 +31,7 @@ public static class MailroomCoreExtensions
         services.AddScoped<IMessageProcess, AlertProcess>();
 
         services.AddSingleton<IMailboxLock, MailboxLock>();
+        services.AddSingleton<RunCancellationRegistry>();
         services.AddScoped<MessageProcessingQueue>();
         services.AddScoped<RunOrchestrator>();
         services.AddSingleton<ScheduledRunner>();

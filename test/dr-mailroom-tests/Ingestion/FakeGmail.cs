@@ -32,6 +32,9 @@ public sealed class FakeGmailSession : IGmailSession
 
     public List<string?> RequestedPageTokens { get; } = [];
 
+    /// <summary>Se valorizzato, GetMetadataAsync lo completa e attende l'annullamento del giro.</summary>
+    public TaskCompletionSource? MetadataReached { get; set; }
+
     public List<ulong> RequestedHistoryIds { get; } = [];
 
     public Task<ulong> GetProfileHistoryIdAsync(CancellationToken cancellationToken) =>
@@ -78,6 +81,13 @@ public sealed class FakeGmailSession : IGmailSession
         {
             // Cedo il controllo: chiamate concorrenti, se ci fossero, si sovrapporrebbero qui
             await Task.Yield();
+            if (MetadataReached is not null)
+            {
+                // Giro "in corso": segnalo l'arrivo e resto qui finché il giro non viene annullato
+                MetadataReached.TrySetResult();
+                await Task.Delay(Timeout.Infinite, cancellationToken);
+            }
+
             if (gmailMessageId == FailOnMetadataId)
             {
                 throw new HttpRequestException("metadati non disponibili");

@@ -79,7 +79,7 @@ Una tabella da `GET /api/v1/mailboxes` (DTO `MailboxDto`):
 | Colonna | Campo | Note |
 |---|---|---|
 | Indirizzo | `emailAddress` | |
-| Stato | `status` | badge: `Active` verde, `TokenRevoked` arancione, `Disabled` grigio, `Deleted` grigio barrato |
+| Stato | `status` | badge: `Active` verde, `TokenRevoked` arancione, `Disabled` grigio con etichetta "In pausa", `Deleted` grigio barrato |
 | Collegata | `isConnected` | |
 | Backfill | `backfillCompleted`, `backfillInProgress` | "Completato" / "In corso (riprende dal punto salvato)" / "Da avviare" |
 | Ultimo giro | `lastRunAtUtc` | |
@@ -110,6 +110,16 @@ Al ritorno, la vista legge `oauth` e `reason`, mostra un messaggio in una region
 ### Token revocato
 
 Con `status = TokenRevoked` la riga mostra il pulsante **"Ricollega"**: rifà lo stesso flusso. Il backend aggiorna il token della casella esistente e la riporta ad `Active`, senza rifare il backfill.
+
+### Mettere in pausa e riprendere una casella
+
+Serve a fermare il lavoro su una casella senza eliminarla (D19). La pausa resta salvata anche dopo un riavvio del servizio.
+
+- Con `status = Active` la riga mostra **"Pausa"**: chiama `POST /api/v1/mailboxes/{id}/pause`. **204** → la riga passa a `Disabled` ("In pausa"); i giri in corso della casella vengono annullati e chiudono `Cancelled`.
+- Con `status = Disabled` la riga mostra **"Riprendi"**: chiama `POST /api/v1/mailboxes/{id}/resume`. **204** → la riga torna `Active`; il lavoro riparte al prossimo scatto del cron o con "Esegui ora", e il backfill riprende dal punto salvato.
+- **409** sulla pausa: casella eliminata o con token revocato. **409** sulla ripresa: la casella non è in pausa.
+- Entrambe le chiamate sono idempotenti: ripeterle non è un errore.
+- Durante la pausa "Esegui ora" e "Riapplica" ricevono 409 ("La casella non è attiva" / "La casella è in pausa"). I filtri restano modificabili.
 
 ### Eliminare una casella
 
@@ -182,7 +192,7 @@ L'azione **"Riapplica"** è sulla riga del filtro. Serve a lavorare le mail **gi
 1. Una modale propone le checkbox dei soli processi del filtro, tutte selezionate.
 2. **"Avvia"** chiama `POST /api/v1/filters/{id}/reapply` con `{ "processes": [...] }`. Il body è facoltativo: senza, valgono tutti i processi.
 3. **202** → `RunsStartedDto { runIds, skippedMailboxIds }`: un giro per casella (per un filtro globale, uno per ogni casella attiva). Il frontend apre la vista Esecuzioni sui `runIds`. Se `skippedMailboxIds` non è vuoto, segnala le caselle saltate perché occupate.
-4. **409**: tutte le caselle sono occupate, oppure la casella è eliminata. **400**: è stato scelto un processo che il filtro non ha.
+4. **409**: tutte le caselle sono occupate, oppure la casella è eliminata o in pausa. **400**: è stato scelto un processo che il filtro non ha.
 
 La riapplica è idempotente: rilanciarla non duplica né allegati né allerte.
 
@@ -208,10 +218,19 @@ Il pulsante **"Esegui ora"** ha accanto una select della casella; "Tutte" corris
 
 Per ogni giro con `status = Running`:
 - chiama `GET /api/v1/runs/{id}` ogni 3–5 secondi;
-- si ferma quando lo stato diventa `Completed`, `Failed` o `Skipped`;
+- si ferma quando lo stato diventa `Completed`, `Failed`, `Skipped` o `Cancelled`;
 - si sospende quando la scheda non è visibile (`document.visibilityState`).
 
 L'avanzamento (`messagesRead`) va in una regione `aria-live="polite"`, aggiornata al massimo ogni 10 s per non saturare gli screen reader.
+
+### Annullare un giro
+
+Ogni giro con `status = Running` ha il pulsante **"Annulla"**; sopra la cronologia c'è **"Annulla tutti"**. Entrambi chiedono conferma.
+
+- **"Annulla"** chiama `POST /api/v1/runs/{id}/cancel`; **"Annulla tutti"** chiama `POST /api/v1/runs/cancel`.
+- **202** → `RunsCancelledDto { runIds }`. L'annullamento è asincrono: il giro si ferma entro pochi secondi e il polling lo vede passare a `Cancelled`.
+- **409** → il giro non è più in corso ("Annulla tutti": nessun giro in corso). È un avviso, non un errore. **404** → giro inesistente.
+- Testo della conferma: *"Il giro si ferma e il lavoro già fatto resta salvato. Il cron ne avvierà uno nuovo al prossimo scatto: per fermare una casella più a lungo usa \"Pausa\" nella vista Caselle."*
 
 ### Cronologia
 
@@ -226,7 +245,7 @@ Una tabella da `GET /api/v1/runs`, dal più recente. Filtri: `mailboxId`, `trigg
 | Mail lette / lavorate | `messagesRead`, `messagesProcessed` |
 | Errori | `errorCount`, `errorSummary` |
 
-`Skipped` con "Casella occupata da un altro giro" è normale: il cron ha trovato la casella già al lavoro.
+`Skipped` con "Casella occupata da un altro giro" è normale: il cron ha trovato la casella già al lavoro. Badge di `Cancelled`: grigio, con il motivo da `errorSummary` ("Giro annullato su richiesta" oppure "Giro annullato dall'arresto del servizio").
 
 Per i widget compatti (per esempio "ultimi giri" in home) c'è `GET /api/v1/runs/summary`.
 
@@ -276,6 +295,8 @@ Sono tutti i path esposti dalla Fase 15 (`/openapi/v1.json`).
 | `GET /api/v1/mailboxes` | Caselle (elenco) |
 | `GET /api/v1/mailboxes/summary` | Filtri (select casella), Esecuzioni (select e nomi), Statistiche (select) |
 | `GET /api/v1/mailboxes/{id}` | Caselle (dettaglio) |
+| `POST /api/v1/mailboxes/{id}/pause` | Caselle (Pausa) |
+| `POST /api/v1/mailboxes/{id}/resume` | Caselle (Riprendi) |
 | `DELETE /api/v1/mailboxes/{id}` | Caselle (Elimina) |
 | `GET /api/v1/mailboxes/connect` | Caselle (Collega / Ricollega) |
 | `GET /api/v1/filters` | Filtri (elenco) |
@@ -290,6 +311,8 @@ Sono tutti i path esposti dalla Fase 15 (`/openapi/v1.json`).
 | `GET /api/v1/runs` | Esecuzioni (cronologia) |
 | `GET /api/v1/runs/summary` | Esecuzioni (widget ultimi giri) |
 | `GET /api/v1/runs/{id}` | Esecuzioni (polling) |
+| `POST /api/v1/runs/{id}/cancel` | Esecuzioni (Annulla) |
+| `POST /api/v1/runs/cancel` | Esecuzioni (Annulla tutti) |
 | `GET /api/v1/stats/senders` | Statistiche (totale) |
 | `GET /api/v1/stats/senders/monthly` | Statistiche (mensile) |
 | `GET /api/v1/messages/{id}/attachments` | Filtri (anteprima → allegati salvati) |
@@ -313,4 +336,4 @@ Sono tutti i path esposti dalla Fase 15 (`/openapi/v1.json`).
 - Codice: `src/dr-mailroom-api/Endpoints/`, `src/dr-mailroom-api/Dto/`, `src/dr-mailroom-api/Validators/`, `src/dr-mailroom-api/Services/MailboxService.cs`
 - Architettura: [architettura.md](architettura.md)
 
-*Revisione v1.0 — 2026-10-05 19:18 — claude-opus-5-5*
+*Revisione v1.1 — 2026-10-08 22:21 — claude-opus-5-5*

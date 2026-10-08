@@ -10,10 +10,11 @@ using Microsoft.Extensions.Options;
 
 namespace dr_mailroom_api.Services;
 
-/// <summary>Servizio delle caselle: consultazione, collegamento OAuth ed eliminazione logica (D18).</summary>
+/// <summary>Servizio delle caselle: consultazione, collegamento OAuth, pausa e ripresa, eliminazione logica (D18).</summary>
 public class MailboxService(
     MailboxProvider mailboxProvider,
     RunProvider runProvider,
+    RunService runService,
     IGmailAuthorizer authorizer,
     ITokenProtector tokenProtector,
     OAuthStateProtector stateProtector,
@@ -103,6 +104,52 @@ public class MailboxService(
         // Scrivo su DB l'eliminazione logica
         await mailboxProvider.MarkDeletedAsync(mailboxId, cancellationToken);
         return ServiceResult<bool>.Ok(true);
+    }
+
+    /// <summary>
+    /// Pausa: stato Disabled, nessun giro (cron, manuale, riapplica) finché non si riprende; annulla i giri in corso.
+    /// 404 se non esiste, 409 se eliminata o con token revocato. Idempotente.
+    /// </summary>
+    public async Task<ServiceResult<bool>> PauseAsync(int mailboxId, CancellationToken cancellationToken)
+    {
+        // Leggo da DB lo stato della casella
+        var status = await mailboxProvider.GetMailboxStatusAsync(mailboxId, cancellationToken);
+        switch (status)
+        {
+            case null:
+                return ServiceResult<bool>.NotFound(ServiceMessages.MailboxNotFound);
+            case MailboxStatus.Deleted:
+                return ServiceResult<bool>.Conflict(ServiceMessages.MailboxDeleted);
+            case MailboxStatus.TokenRevoked:
+                return ServiceResult<bool>.Conflict(ServiceMessages.MailboxTokenRevoked);
+            case MailboxStatus.Active:
+                // Scrivo su DB la pausa prima di annullare: un giro che parte ora trova già la casella in pausa
+                await mailboxProvider.SetStatusAsync(mailboxId, MailboxStatus.Disabled, cancellationToken);
+                break;
+        }
+
+        await runService.CancelRunningRunsAsync(mailboxId, cancellationToken);
+        return ServiceResult<bool>.Ok(true);
+    }
+
+    /// <summary>Ripresa: Disabled → Active, la casella torna nei giri. 404 se non esiste, 409 se non è in pausa. Idempotente su Active.</summary>
+    public async Task<ServiceResult<bool>> ResumeAsync(int mailboxId, CancellationToken cancellationToken)
+    {
+        // Leggo da DB lo stato della casella
+        var status = await mailboxProvider.GetMailboxStatusAsync(mailboxId, cancellationToken);
+        switch (status)
+        {
+            case null:
+                return ServiceResult<bool>.NotFound(ServiceMessages.MailboxNotFound);
+            case MailboxStatus.Active:
+                return ServiceResult<bool>.Ok(true);
+            case MailboxStatus.Disabled:
+                // Scrivo su DB la ripresa
+                await mailboxProvider.SetStatusAsync(mailboxId, MailboxStatus.Active, cancellationToken);
+                return ServiceResult<bool>.Ok(true);
+            default:
+                return ServiceResult<bool>.Conflict(ServiceMessages.MailboxNotPaused);
+        }
     }
 
     /// <summary>URL del frontend con l'esito del collegamento.</summary>

@@ -28,6 +28,21 @@ public static class RunsMapping
             .WithSummary("Avvia giro manuale")
             .WithDescription("Avvia subito un giro su una casella o, senza mailboxId, su tutte le caselle attive. 409 se la casella (o tutte) ha già un giro in corso.");
 
+        group.MapPost("/cancel", CancelAllHandlerAsync)
+            .Produces<RunsCancelledDto>(StatusCodes.Status202Accepted)
+            .Produces<ProblemDetails>(StatusCodes.Status409Conflict)
+            .WithName("PostRunCancelAll")
+            .WithSummary("Annulla tutti i giri in corso")
+            .WithDescription("Chiede l'annullamento di tutti i giri Running. Il lavoro si ferma entro pochi secondi e i giri si chiudono Cancelled (da verificare con GET /runs). Non mette in pausa le caselle: il cron ne avvierà di nuovi. 409 se nessun giro è in corso.");
+
+        group.MapPost("/{id:long}/cancel", CancelHandlerAsync)
+            .Produces<RunsCancelledDto>(StatusCodes.Status202Accepted)
+            .Produces<ProblemDetails>(StatusCodes.Status404NotFound)
+            .Produces<ProblemDetails>(StatusCodes.Status409Conflict)
+            .WithName("PostRunCancel")
+            .WithSummary("Annulla un giro in corso")
+            .WithDescription("Chiede l'annullamento del giro. Il lavoro si ferma entro pochi secondi e il giro si chiude Cancelled; il backfill riprende dalla pagina salvata al giro successivo. 404 se il giro non esiste, 409 se non è in corso.");
+
         group.MapGet("/", GetListHandlerAsync)
             .Produces<List<RunDto>>(StatusCodes.Status200OK)
             .Produces<HttpValidationProblemDetails>(StatusCodes.Status400BadRequest)
@@ -66,6 +81,20 @@ public static class RunsMapping
         }
 
         var result = await service.StartManualAsync(body, cancellationToken);
+        return result.Outcome == ServiceOutcome.Ok ? TypedResults.Accepted((string?)null, result.Value) : EndpointResults.Failure(result);
+    }
+
+    /// <summary>Annullamento di un giro: 202 accettato, la chiusura Cancelled è asincrona.</summary>
+    private static async Task<IResult> CancelHandlerAsync(long id, RunService service, CancellationToken cancellationToken)
+    {
+        var result = await service.CancelAsync(id, cancellationToken);
+        return result.Outcome == ServiceOutcome.Ok ? TypedResults.Accepted((string?)null, result.Value) : EndpointResults.Failure(result);
+    }
+
+    /// <summary>Annullamento di tutti i giri in corso.</summary>
+    private static async Task<IResult> CancelAllHandlerAsync(RunService service, CancellationToken cancellationToken)
+    {
+        var result = await service.CancelAllAsync(cancellationToken);
         return result.Outcome == ServiceOutcome.Ok ? TypedResults.Accepted((string?)null, result.Value) : EndpointResults.Failure(result);
     }
 

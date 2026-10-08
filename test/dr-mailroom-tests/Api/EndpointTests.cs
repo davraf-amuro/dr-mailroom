@@ -171,6 +171,115 @@ public sealed class EndpointTests : IClassFixture<MailroomApiFactory>
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
     }
 
+    /// <summary>Avvia un giro manuale (il dispatcher finto non lo esegue: resta Running senza job) e ne restituisce l'Id.</summary>
+    private async Task<long> StartRunAsync(int mailboxId)
+    {
+        var response = await _client.PostAsJsonAsync(RunsUrl, new { mailboxId });
+        Assert.Equal(HttpStatusCode.Accepted, response.StatusCode);
+        var started = await response.Content.ReadFromJsonAsync<JsonElement>();
+        return started.GetProperty("runIds")[0].GetInt64();
+    }
+
+    /// <summary>Stato del giro letto dall'API.</summary>
+    private async Task<string?> RunStatusAsync(long runId) =>
+        (await _client.GetFromJsonAsync<JsonElement>($"{RunsUrl}/{runId}")).GetProperty("status").GetString();
+
+    [Fact]
+    public async Task CancelRun_WithoutJob_ClosesCancelled_ThenSecondCancelReturns409Async()
+    {
+        var runId = await StartRunAsync(await SeedMailboxAsync());
+
+        var first = await _client.PostAsync($"{RunsUrl}/{runId}/cancel", null);
+        var second = await _client.PostAsync($"{RunsUrl}/{runId}/cancel", null);
+
+        Assert.Equal(HttpStatusCode.Accepted, first.StatusCode);
+        Assert.Equal("Cancelled", await RunStatusAsync(runId));
+        Assert.Equal(HttpStatusCode.Conflict, second.StatusCode);
+    }
+
+    [Fact]
+    public async Task CancelRun_Unknown_Returns404Async()
+    {
+        var response = await _client.PostAsync($"{RunsUrl}/999999/cancel", null);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task CancelAllRuns_CancelsEveryRunningRunAsync()
+    {
+        var runId = await StartRunAsync(await SeedMailboxAsync());
+
+        var response = await _client.PostAsync($"{RunsUrl}/cancel", null);
+
+        Assert.Equal(HttpStatusCode.Accepted, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Contains(runId, body.GetProperty("runIds").EnumerateArray().Select(e => e.GetInt64()));
+        Assert.Equal("Cancelled", await RunStatusAsync(runId));
+    }
+
+    [Fact]
+    public async Task PauseMailbox_CancelsRuns_BlocksManualRun_UntilResumeAsync()
+    {
+        var mailboxId = await SeedMailboxAsync();
+        var runId = await StartRunAsync(mailboxId);
+
+        var pause = await _client.PostAsync($"/api/v1/mailboxes/{mailboxId}/pause", null);
+        var pauseAgain = await _client.PostAsync($"/api/v1/mailboxes/{mailboxId}/pause", null);
+        var runWhilePaused = await _client.PostAsJsonAsync(RunsUrl, new { mailboxId });
+
+        Assert.Equal(HttpStatusCode.NoContent, pause.StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, pauseAgain.StatusCode);
+        Assert.Equal("Cancelled", await RunStatusAsync(runId));
+        Assert.Equal(HttpStatusCode.Conflict, runWhilePaused.StatusCode);
+
+        var resume = await _client.PostAsync($"/api/v1/mailboxes/{mailboxId}/resume", null);
+        var resumeAgain = await _client.PostAsync($"/api/v1/mailboxes/{mailboxId}/resume", null);
+
+        Assert.Equal(HttpStatusCode.NoContent, resume.StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, resumeAgain.StatusCode);
+        await using var db = _factory.NewContext();
+        Assert.Equal(MailboxStatus.Active, (await db.Mailboxes.SingleAsync(m => m.Id == mailboxId)).Status);
+    }
+
+    [Fact]
+    public async Task PausedMailbox_ReapplyReturns409Async()
+    {
+        var mailboxId = await SeedMailboxAsync(MailboxStatus.Disabled);
+        var body = ValidFilter();
+        body["mailboxId"] = mailboxId;
+        var created = await _client.PostAsJsonAsync(FiltersUrl, body);
+        var filterId = (await created.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetInt32();
+
+        var response = await _client.PostAsJsonAsync($"{FiltersUrl}/{filterId}/reapply", new { processes = new[] { "AttachmentExtraction" } });
+
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+    }
+
+    [Theory]
+    [InlineData(MailboxStatus.Deleted, "pause")]
+    [InlineData(MailboxStatus.TokenRevoked, "pause")]
+    [InlineData(MailboxStatus.TokenRevoked, "resume")]
+    public async Task PauseOrResume_OnIncompatibleStatus_Returns409Async(MailboxStatus status, string action)
+    {
+        var mailboxId = await SeedMailboxAsync(status);
+
+        var response = await _client.PostAsync($"/api/v1/mailboxes/{mailboxId}/{action}", null);
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+    }
+
+    [Theory]
+    [InlineData("pause")]
+    [InlineData("resume")]
+    public async Task PauseOrResume_UnknownMailbox_Returns404Async(string action)
+    {
+        var response = await _client.PostAsync($"/api/v1/mailboxes/999999/{action}", null);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
     [Fact]
     public async Task DeletedMailbox_FilterCreationReturns409_AndDeleteIsLogicalAsync()
     {

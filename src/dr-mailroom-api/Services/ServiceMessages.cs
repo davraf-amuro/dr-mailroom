@@ -14,4 +14,9 @@ public static class ServiceMessages
     public const string MessageNotFound = "Messaggio inesistente";
     public const string RunNotFound = "Giro inesistente";
     public const string ProcessNotInFilter = "Il processo non è previsto dal filtro";
+    public const string RunNotRunning = "Il giro non è in corso";
+    public const string NoRunningRuns = "Nessun giro in corso";
+    public const string MailboxPaused = "La casella è in pausa";
+    public const string MailboxNotPaused = "La casella non è in pausa";
+    public const string MailboxTokenRevoked = "La casella ha il token revocato: va ricollegata";
 }

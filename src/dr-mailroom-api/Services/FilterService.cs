@@ -153,6 +153,12 @@ public class FilterService(
                 return check;
             }
 
+            // Leggo da DB lo stato: una casella in pausa non si lavora, nemmeno in riapplica
+            if (await mailboxProvider.GetMailboxStatusAsync(mailboxId, cancellationToken) == MailboxStatus.Disabled)
+            {
+                return ServiceResult<RunsStartedDto>.Conflict(ServiceMessages.MailboxPaused);
+            }
+
             mailboxIds = [mailboxId];
         }
         else

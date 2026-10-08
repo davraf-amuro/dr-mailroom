@@ -1,7 +1,7 @@
 # Piano: dr-mailroom — servizio C# di lettura Gmail, filtri, processi e statistiche
 Brief: [20261001-01.md](../../../briefs/20261001-01.md)
 Data: 2026-10-02
-Stato: IN CORSO
+Stato: INTERROTTO
 Sostituisce: [2026-10-02-dr-mailroom-mvp](../2026-10-02-dr-mailroom-mvp/plan.md) (SUPERATO)
 
 ## Obiettivo
@@ -66,19 +66,19 @@ Piano nato da sessione `/dr-warroom` (ARCH, BE, UI, UX, DBADMIN) del 2026-10-02,
 
 ## Scope
 ### File da modificare / creare
-- [ ] `.ai/dr-guidelines-packages.json`, `.github/instructions/*` — aggiornati dagli installer (Fase 2)
-- [ ] `dr-mailroom.slnx` — solution
-- [ ] `src/dr-mailroom-api/**` — host: `Endpoints/`, `Services/`, `Dto/`, `Validators/`, `Transformers/`, `Properties/`, `Infrastructure/{Database,Logging}/`, `Scheduling/`, `Program.cs`, `appsettings*.json`, `dr-mailroom-api.http`
-- [ ] `src/dr-mailroom-core/**` — `Infrastructure/Mailroom/` (persistenza, C3), `Configuration/`, `Enums/`, `Security/`, `Gmail/`, `Ingestion/`, `Filtering/`, `Processes/`, `Runs/`
-- [ ] `test/dr-mailroom-tests/**` — test
-- [ ] `docs/architettura.md` — decisioni architetturali
-- [ ] `docs/frontend-specifiche.md` — specifica del frontend
-- [ ] `docs/setup-google-oauth.md` — procedura Google Cloud passo passo
-- [ ] `docs/avvio-e-configurazione.md` — segreti, migration, avvio locale e container, test (Fase 18, divergenza risolta)
-- [ ] `Dockerfile`, `docker-compose.yml`, `.dockerignore`, `.env.example`, `.gitignore` (`.env`)
-- [ ] `README.md`
-- [ ] `.vscode/launch.json`, `.vscode/tasks.json` — debug (C12)
-- [ ] `Directory.Build.props` — sostituire i placeholder `YourCompany` / `Minimal API Template`
+- [x] `.ai/dr-guidelines-packages.json`, `.github/instructions/*` — aggiornati dagli installer (Fase 2)
+- [x] `dr-mailroom.slnx` — solution
+- [x] `src/dr-mailroom-api/**` — host: `Endpoints/`, `Services/`, `Dto/`, `Validators/`, `Transformers/`, `Properties/`, `Infrastructure/{Database,Logging}/`, `Scheduling/`, `Program.cs`, `appsettings*.json`, `dr-mailroom-api.http`
+- [x] `src/dr-mailroom-core/**` — `Infrastructure/Mailroom/` (persistenza, C3), `Configuration/`, `Enums/`, `Security/`, `Gmail/`, `Ingestion/`, `Filtering/`, `Processes/`, `Runs/`
+- [x] `test/dr-mailroom-tests/**` — test
+- [x] `docs/architettura.md` — decisioni architetturali
+- [x] `docs/frontend-specifiche.md` — specifica del frontend
+- [x] `docs/setup-google-oauth.md` — procedura Google Cloud passo passo
+- [x] `docs/avvio-e-configurazione.md` — segreti, migration, avvio locale e container, test (Fase 18, divergenza risolta)
+- [x] `Dockerfile`, `docker-compose.yml`, `.dockerignore`, `.env.example`, `.gitignore` (`.env`)
+- [x] `README.md`
+- [x] `.vscode/launch.json`, `.vscode/tasks.json` — debug (C12)
+- [x] `Directory.Build.props` — sostituire i placeholder `YourCompany` / `Minimal API Template`
 
 > Percorsi allineati alle istruzioni dei pacchetti in Fase 3 (C1–C12).
 
@@ -323,24 +323,31 @@ Viste: `vw_SenderStats(MailboxId, SenderAddress, MailCount)`, `vw_SenderMonthlyS
 - **Tool ammessi**: `dr-verify-plan`
 - **Verifica passo**: tutti i criteri finali soddisfatti
 - **Su divergenza**: STOP — scrivi `⚠️ Divergenza Fase 19: <cosa>` in plan.md, non procedere
+- **Esito parziale (2026-10-08, servizio spento su richiesta dell'utente)**:
+  - Statici: build 0 avvisi, 109 test superati (1 skip SQL), `dotnet format` exit 0 su 3 progetti; unico scope `gmail.readonly`, nessuna chiamata Gmail di modifica; 4 UNIQUE + `CK_Filter_Subject` nella migration; nessun segreto tracciato (`.env` e `appsettings.local.json` ignorati, `appsettings.json` con valori vuoti); nessun log con interpolazione né token
+  - DB (sola lettura): viste interrogabili; 4.500 mail indicizzate (30/06–08/10/2026), 0 allerte, 0 allegati, 0 `ProcessExecution` → backfill senza processi
+  - Gmail (connettore, sola lettura): campione di 5 mail `UNREAD` nel DB → ancora `UNREAD` in Gmail; `noreply@subito.it` ottobre 15 = 15, settembre 54 = 54
+  - Container: volumi `data/logs` e `data/keys` persistenti; backfill interrotto (giri 4, 6, 7) e ripreso dalla pagina salvata ("ripresa backfill dalla pagina salvata")
+  - Anomalia non bloccante: mail `19f426780b8543a1` con `ReceivedAtUtc` 1970-01-01, perché Gmail restituisce `internalDate = 0` (header `Date` malformato, anno 7252). Non è un difetto del servizio
+- **Da completare (richiede il servizio acceso)**: casella 1 in pausa (`Disabled`), backfill fermo a 4.500 mail. Servono: `resume` → fine backfill → secondo giro incrementale; filtro di test (anche `Regex`) su una mail nuova → allerta una sola volta + allegato; riapplica solo `AttachmentExtraction` due volte; giro manuale con doppio avvio → 409; `UPDATE Mailbox SET HistoryId = 1` (autorizzato) → scansione completa senza duplicati; `/dr-verify-plan`
 
 ## Criteri di verifica finale
-- [ ] `dotnet build dr-mailroom.slnx` e `dotnet test` exit 0
-- [ ] `dotnet format <progetto>.csproj --verify-no-changes` exit 0 su ogni progetto
-- [ ] Scope OAuth unico `gmail.readonly` nel codice; nessuna chiamata Gmail di modifica
-- [ ] Indici UNIQUE `(MailboxId, GmailMessageId)`, `Alert.MessageId`, `(MessageId, ProcessType)`, `(MessageId, PartId)` e CHECK su `Filter` presenti nella migration
-- [ ] Viste `vw_SenderStats` e `vw_SenderMonthlyStats` presenti e interrogabili
-- [ ] Nessun segreto in file tracciati (`git grep` su secret, connection string, client secret, chiave API); token mai loggati
-- [ ] Logging strutturato con placeholder, nessuna interpolazione nei log
-- [ ] Stato letto/non letto di un campione di mail non lette invariato dopo il giro
+- [x] `dotnet build dr-mailroom.slnx` e `dotnet test` exit 0
+- [x] `dotnet format <progetto>.csproj --verify-no-changes` exit 0 su ogni progetto
+- [x] Scope OAuth unico `gmail.readonly` nel codice; nessuna chiamata Gmail di modifica
+- [x] Indici UNIQUE `(MailboxId, GmailMessageId)`, `Alert.MessageId`, `(MessageId, ProcessType)`, `(MessageId, PartId)` e CHECK su `Filter` presenti nella migration
+- [x] Viste `vw_SenderStats` e `vw_SenderMonthlyStats` presenti e interrogabili
+- [x] Nessun segreto in file tracciati (`git grep` su secret, connection string, client secret, chiave API); token mai loggati
+- [x] Logging strutturato con placeholder, nessuna interpolazione nei log
+- [x] Stato letto/non letto di un campione di mail non lette invariato dopo il giro
 - [ ] Backfill interrotto e ripreso dalla pagina salvata; secondo giro consecutivo incrementale
 - [ ] Backfill senza allerte né allegati; statistiche totale e mensile corrette su un mittente campione
 - [ ] Filtro di test (anche `Regex`): allerta creata una sola volta, allegato salvato con nome deterministico e collegato alla mail
 - [ ] Riapplica con solo `AttachmentExtraction`: scarica gli allegati dello storico, nessuna allerta, nessun duplicato alla seconda esecuzione
 - [ ] Giro manuale: parte subito, `RunId` interrogabile, doppio avvio → 409
 - [ ] `HistoryId` scaduto gestito con scansione completa senza duplicati
-- [ ] `docs/architettura.md`, `docs/frontend-specifiche.md`, `docs/setup-google-oauth.md`, `README.md` presenti
-- [ ] `docker compose up` funzionante con volumi persistenti
+- [x] `docs/architettura.md`, `docs/frontend-specifiche.md`, `docs/setup-google-oauth.md`, `README.md` presenti
+- [x] `docker compose up` funzionante con volumi persistenti
 - [ ] Verifica a freddo con `/dr-verify-plan`
 
 ## Revisioni

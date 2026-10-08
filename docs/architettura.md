@@ -46,7 +46,7 @@ flowchart LR
 
 ---
 
-## Le decisioni del proprietario (D1–D18)
+## Le decisioni del proprietario (D1–D19)
 
 | # | Tema | Decisione |
 |---|------|-----------|
@@ -68,6 +68,7 @@ flowchart LR
 | D16 | Riapplica di un filtro globale | Un giro per ogni casella attiva; le caselle occupate si saltano e si segnalano; 409 solo se lo sono tutte |
 | D17 | Giro manuale su tutte le caselle | `POST /api/v1/runs` senza casella crea un giro per ogni casella attiva, con la stessa logica di D16 |
 | D18 | Rimozione di una casella | Solo logica: stato `Deleted` e refresh token cancellato. Niente più giri né modifiche ai suoi filtri (409); le statistiche restano. Un indirizzo eliminato non si può ricollegare |
+| D19 | Fermare il lavoro | `POST /api/v1/runs/{id}/cancel` e `POST /api/v1/runs/cancel` annullano uno o tutti i giri in corso, che chiudono `Cancelled`. `POST /api/v1/mailboxes/{id}/pause` mette la casella in pausa (`Disabled`, salvato su DB): niente giri dal cron, giro manuale e riapplica → 409, e annulla i giri in corso. `POST /api/v1/mailboxes/{id}/resume` la riporta `Active`. Il backfill annullato riprende dalla pagina salvata |
 
 ---
 
@@ -123,8 +124,8 @@ Lo scheduler è Quartz.NET, registrato in `SchedulingExtensions.AddMailroomSched
 | `OnDemandRunJob` | solo quando `QuartzRunDispatcher` lo invoca con `TriggerJob`; non ha un trigger proprio | esegue il giro indicato dal `RunId` nel `JobDataMap` (giro manuale o riapplica) |
 
 - `ScheduledRunJob` ha `[DisallowConcurrentExecution]`: se il giro precedente dura più di 15 minuti, lo scatto successivo aspetta invece di sovrapporsi.
-- All'arresto del servizio, `WaitForJobsToComplete = true` fa aspettare la fine dei giri in corso.
-- Per "casella attiva" si intende `Status = Active` con refresh token presente. Una casella `TokenRevoked` o `Deleted` esce dai giri automatici.
+- All'arresto del servizio, `ApplicationStopping` annulla i giri in corso tramite `RunCancellationRegistry`; poi `WaitForJobsToComplete = true` aspetta che si chiudano `Cancelled`. Senza l'annullamento Quartz aspetterebbe un giro che non si ferma, fino a essere ucciso.
+- Per "casella attiva" si intende `Status = Active` con refresh token presente. Una casella `TokenRevoked`, `Disabled` (in pausa) o `Deleted` esce dai giri automatici.
 - Nessun job rilancia eccezioni: un errore finisce nel log e il cron riprova allo scatto successivo.
 
 ### Chi crea il giro
@@ -163,9 +164,10 @@ sequenceDiagram
     participant C as Consumatori (×MaxParallelMessages)
 
     J->>O: esegui Run (già creato, stato Running)
+    O->>O: registra il giro in RunCancellationRegistry (token annullabile)
     O->>DB: stato della casella
-    alt casella Deleted
-        O->>DB: Run Skipped ("Casella eliminata")
+    alt casella Deleted o Disabled
+        O->>DB: Run Skipped ("Casella eliminata" / "Casella in pausa")
     else casella lavorabile
         O->>L: prendi lock mailbox:<id> (timeout 0)
         alt lock occupato
@@ -203,6 +205,7 @@ Regole che valgono in ogni giro:
 - **Processi solo sui messaggi inseriti ora**, mai su quelli già presenti. Un processo che fallisce su un messaggio registra `Failed` in `ProcessExecution` e il giro prosegue.
 - **Produttore e consumatori separati.** L'ingestione legge Gmail una mail per volta e mette gli id salvati in una coda FIFO bounded (`MessageProcessingQueue`); i consumatori la svuotano in parallelo, ognuno con il proprio scope DI. Se il produttore fallisce, i consumatori finiscono i messaggi già in coda e poi il giro chiude `Failed`; un errore fatale di un consumatore (per esempio `invalid_grant`) annulla tutto. La riapplica usa la stessa coda, con i candidati letti da DB come produttore.
 - **Nomi file contesi.** Due consumatori che salvano allegati con lo stesso nome deterministico ricalcolano il suffisso `_N` e riprovano la rinomina.
+- **Annullamento (D19).** Ogni giro lavora con un token registrato in `RunCancellationRegistry` (singleton) **prima** di leggere il proprio stato. L'API annulla quel token; Gmail, coda e consumatori si fermano al primo punto di attesa e l'orchestratore chiude il giro `Cancelled` con `CancellationToken.None`. Un giro `Running` che nessun job sta eseguendo (non ancora partito o orfano) l'API lo chiude direttamente su DB e poi riprova il token, nel caso sia partito nel frattempo. Un giro annullato non tocca `Mailbox.LastError`.
 - **Riavvio del servizio.** All'avvio i giri rimasti `Running` per un arresto brusco vengono chiusi come `Failed`, così la casella non resta bloccata.
 
 ### Come si chiude un giro
@@ -210,7 +213,8 @@ Regole che valgono in ogni giro:
 | Esito | Stato del `Run` | Effetto sulla casella |
 |---|---|---|
 | Lavoro finito, anche con processi falliti su qualche messaggio | `Completed`, con `MessagesRead`, `MessagesProcessed`, `ErrorCount` | esito pulito, `LastError` azzerato |
-| Casella `Deleted` oppure lock già preso | `Skipped`, con il motivo in `ErrorSummary` | nessuno |
+| Casella `Deleted`, casella `Disabled` (in pausa) oppure lock già preso | `Skipped`, con il motivo in `ErrorSummary` | nessuno |
+| Annullato via API o dall'arresto del servizio | `Cancelled`, con il motivo in `ErrorSummary` | nessuno: il backfill riprende dalla pagina salvata, l'incrementale dal `HistoryId` salvato |
 | Refresh token revocato (`invalid_grant`) | `Failed` | `Status = TokenRevoked`: la casella esce dai giri finché non si ricollega |
 | Qualsiasi altro errore | `Failed`, con il messaggio in `ErrorSummary` | `LastError` valorizzato; il cron riprova al prossimo scatto |
 
@@ -288,11 +292,11 @@ sequenceDiagram
 
 | Tabella | Colonne chiave | Vincoli e indici |
 |---------|----------------|------------------|
-| `Mailbox` | EmailAddress, EncryptedRefreshToken, HistoryId (`decimal(20,0)`), BackfillPageToken, BackfillCompleted, Status (Active / TokenRevoked / Disabled / Deleted), LastRunAtUtc, LastError | UNIQUE(EmailAddress) |
+| `Mailbox` | EmailAddress, EncryptedRefreshToken, HistoryId (`decimal(20,0)`), BackfillPageToken, BackfillCompleted, Status (Active / TokenRevoked / Disabled = in pausa / Deleted), LastRunAtUtc, LastError | UNIQUE(EmailAddress) |
 | `Message` | MailboxId, GmailMessageId, ThreadId, SenderAddress (minuscolo), SenderName, Subject, ReceivedAtUtc, `YearMonth` (`int` calcolato persistito: `YEAR*100+MONTH`, es. 202610), Labels, HasAttachments | UNIQUE(MailboxId, GmailMessageId); IX(MailboxId, SenderAddress, YearMonth) |
 | `Filter` | MailboxId (null = tutte), Name, SenderAddress, SubjectMatchType (null / StartsWith / Contains / Regex), SubjectValue, AttachmentSubfolder, IsEnabled | CHECK: SubjectMatchType e SubjectValue entrambi valorizzati o entrambi null; IX(SenderAddress) |
 | `FilterProcess` | FilterId, ProcessType (AttachmentExtraction / Alert) | PK(FilterId, ProcessType) |
-| `Run` | MailboxId, Trigger (Scheduled / Manual / Reapply), FilterId e RequestedProcesses (solo Reapply), Status (Running / Completed / Failed / Skipped), StartedAtUtc, EndedAtUtc, MessagesRead, MessagesProcessed, ErrorCount, ErrorSummary | IX(MailboxId, StartedAtUtc) |
+| `Run` | MailboxId, Trigger (Scheduled / Manual / Reapply), FilterId e RequestedProcesses (solo Reapply), Status (Running / Completed / Failed / Skipped / Cancelled), StartedAtUtc, EndedAtUtc, MessagesRead, MessagesProcessed, ErrorCount, ErrorSummary | IX(MailboxId, StartedAtUtc) |
 | `ProcessExecution` | MessageId, ProcessType, Status, Error, ProcessedAtUtc | UNIQUE(MessageId, ProcessType) |
 | `Alert` | MessageId, SenderAddress, Subject, ReceivedAtUtc, CreatedAtUtc, ConsumedAtUtc | UNIQUE(MessageId); IX(ConsumedAtUtc) |
 | `AlertFilter` | AlertId, FilterId | PK(AlertId, FilterId) |
@@ -343,4 +347,4 @@ erDiagram
 | `HasAttachments` dedotto dal tipo MIME `multipart/mixed` | con `format=metadata` Gmail non elenca le parti: alcune mail con allegati inline possono risultare senza | nessuno necessario: l'estrazione legge sempre le parti reali (`format=full`) |
 | Riapplica e giro manuale verificano la casella e poi la affidano allo scheduler | in una finestra brevissima un altro giro può prendere il lock prima | il giro parte e chiude come `Skipped`, senza effetti sui dati |
 
-*Revisione v1.4 — 2026-10-08 21:48 — claude-opus-5-5*
+*Revisione v1.5 — 2026-10-08 22:21 — claude-opus-5-5*

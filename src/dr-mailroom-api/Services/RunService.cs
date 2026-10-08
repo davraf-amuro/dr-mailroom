@@ -6,12 +6,13 @@ using dr_mailroom_core.Runs;
 
 namespace dr_mailroom_api.Services;
 
-/// <summary>Servizio dei giri: avvio immediato con 409 su casella occupata (D11, D16, D17) e consultazione.</summary>
+/// <summary>Servizio dei giri: avvio immediato con 409 su casella occupata (D11, D16, D17), annullamento e consultazione.</summary>
 public class RunService(
     RunProvider runProvider,
     MailboxProvider mailboxProvider,
     IMailboxLock mailboxLock,
     IRunDispatcher dispatcher,
+    RunCancellationRegistry cancellationRegistry,
     ILogger<RunService> logger)
 {
     /// <summary>Giri che rispettano il filtro, DTO completo.</summary>
@@ -93,6 +94,64 @@ public class RunService(
         }
 
         return ServiceResult<RunsStartedDto>.Ok(new RunsStartedDto(started, skipped));
+    }
+
+    /// <summary>Annulla un giro in corso: 404 se non esiste, 409 se è già chiuso. Il giro chiude Cancelled in modo asincrono.</summary>
+    public async Task<ServiceResult<RunsCancelledDto>> CancelAsync(long runId, CancellationToken cancellationToken)
+    {
+        // Leggo da DB il giro da annullare
+        var run = await runProvider.GetRunByIdAsync(runId, RunSummaryDto.Projection, cancellationToken);
+        if (run is null)
+        {
+            return ServiceResult<RunsCancelledDto>.NotFound(ServiceMessages.RunNotFound);
+        }
+
+        if (run.Status != RunStatus.Running)
+        {
+            return ServiceResult<RunsCancelledDto>.Conflict(ServiceMessages.RunNotRunning);
+        }
+
+        await CancelRunAsync(runId, cancellationToken);
+        return ServiceResult<RunsCancelledDto>.Ok(new RunsCancelledDto([runId]));
+    }
+
+    /// <summary>Annulla tutti i giri in corso: 409 se non ce n'è nessuno.</summary>
+    public async Task<ServiceResult<RunsCancelledDto>> CancelAllAsync(CancellationToken cancellationToken)
+    {
+        var cancelled = await CancelRunningRunsAsync(null, cancellationToken);
+        return cancelled.Count == 0
+            ? ServiceResult<RunsCancelledDto>.Conflict(ServiceMessages.NoRunningRuns)
+            : ServiceResult<RunsCancelledDto>.Ok(new RunsCancelledDto(cancelled));
+    }
+
+    /// <summary>Annulla i giri in corso di una casella o di tutte (mailboxId null); restituisce gli Id.</summary>
+    public async Task<List<long>> CancelRunningRunsAsync(int? mailboxId, CancellationToken cancellationToken)
+    {
+        // Leggo da DB i giri in corso
+        var runIds = await runProvider.GetRunningRunIdsAsync(mailboxId, cancellationToken);
+        foreach (var runId in runIds)
+        {
+            await CancelRunAsync(runId, cancellationToken);
+        }
+
+        logger.LogInformation("Annullamento richiesto per {Count} giri (casella {MailboxId})", runIds.Count, mailboxId);
+        return runIds;
+    }
+
+    /// <summary>
+    /// Giro in esecuzione qui: annullo il suo token e lo chiude l'orchestratore.
+    /// Altrimenti (non ancora partito o orfano) lo chiudo su DB e riprovo il token, nel caso sia partito nel frattempo.
+    /// </summary>
+    private async Task CancelRunAsync(long runId, CancellationToken cancellationToken)
+    {
+        if (cancellationRegistry.TryCancel(runId))
+        {
+            return;
+        }
+
+        // Scrivo su DB la chiusura del giro senza job in esecuzione
+        await runProvider.CancelRunIfRunningAsync(runId, RunOrchestrator.RunCancelledMessage, cancellationToken);
+        cancellationRegistry.TryCancel(runId);
     }
 
     /// <summary>Occupata se ha un giro Running o se il lock SQL è preso (sonda: preso e subito rilasciato).</summary>
