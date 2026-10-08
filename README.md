@@ -19,6 +19,16 @@ Il servizio gira da solo con un cron configurabile e si può avviare a mano via 
 | [docs/avvio-e-configurazione.md](docs/avvio-e-configurazione.md) | Configurazione e segreti, migration, avvio locale e in container, test, gate di push |
 | [docs/setup-google-oauth.md](docs/setup-google-oauth.md) | Preparazione di Google Cloud passo passo e collegamento delle caselle |
 | [docs/frontend-specifiche.md](docs/frontend-specifiche.md) | Specifica della SPA `dr-mailroom-fe`: viste, convenzioni API, mappa degli endpoint |
+| [docs/onboarding.md](docs/onboarding.md) | Ingresso nel progetto per uno sviluppatore senior: stack, struttura, convenzioni, flusso di lavoro |
+| [docs/card-dr-mailroom-api.md](docs/card-dr-mailroom-api.md) | Scheda dell'API: endpoint group, pacchetti, database, servizi esterni, hosting |
+| [docs/card-dr-mailroom-core.md](docs/card-dr-mailroom-core.md) | Scheda della libreria di dominio: pacchetti, database, Gmail |
+| [docs/endpoint-status.md](docs/endpoint-status.md) | Endpoint di salute: `/health`, stato del database e nuovo tentativo di connessione |
+| [docs/endpoint-mailboxes.md](docs/endpoint-mailboxes.md) | Endpoint delle caselle: elenco, collegamento OAuth, pausa, ripresa, eliminazione |
+| [docs/endpoint-filters.md](docs/endpoint-filters.md) | Endpoint dei filtri: CRUD, anteprima, riapplica |
+| [docs/endpoint-runs.md](docs/endpoint-runs.md) | Endpoint dei giri: avvio manuale, annullamento, cronologia |
+| [docs/endpoint-stats.md](docs/endpoint-stats.md) | Endpoint delle statistiche per mittente, totali e mensili |
+| [docs/endpoint-alerts.md](docs/endpoint-alerts.md) | Endpoint delle allerte per il software di notifica |
+| [docs/endpoint-messages.md](docs/endpoint-messages.md) | Endpoint degli allegati salvati di una mail |
 
 ---
-*Revisione v1.0 — 2026-10-06 08:42 — claude-opus-5-5*
+*Documento aggiornato: Ottobre 2026 — Revisione v1.2 — 2026-10-08 — claude-opus-5-5*
