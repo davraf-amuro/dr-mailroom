@@ -4,6 +4,8 @@ Data: 2026-10-02
 Stato: INTERROTTO
 Sostituisce: [2026-10-02-dr-mailroom-mvp](../2026-10-02-dr-mailroom-mvp/plan.md) (SUPERATO)
 
+> **Nota 2026-10-08** — Da rivedere quando il frontend ([2026-10-08-dr-mailroom-fe](../2026-10-08-dr-mailroom-fe/plan.md)) è pronto: verificare cosa resta aperto (criteri di verifica finali non spuntati) e decidere se completare, chiudere o archiviare. Fino ad allora non blocca altri piani.
+
 ## Obiettivo
 Servizio .NET autonomo che legge in sola lettura una o più caselle Gmail, salva statistiche per mittente, applica filtri (mittente + condizione opzionale sull'oggetto) e i processi associati (estrazione allegati, allerta), schedulato da cron configurabile ed eseguibile on-demand via API; frontend solo come specifica.
 

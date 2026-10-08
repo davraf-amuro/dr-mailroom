@@ -1,43 +1,49 @@
 # Handoff — creazione di dr-mailroom-fe
 
-Per chi riprende il lavoro sul frontend, in una nuova sessione aperta dal workspace `E:\Davide\Progetti\dr-mailroom.code-workspace`. Questa nota basta da sola: non serve la conversazione che l'ha prodotta.
+Per chi riprende il lavoro sul frontend in una nuova sessione aperta dal workspace `E:\Davide\Progetti\dr-mailroom-workspace\dr-mailroom.code-workspace`. Questa nota basta da sola: non serve la conversazione che l'ha prodotta.
 
-## Stato al 2026-10-08
+## Stato al 2026-10-08, fine sessione
 
 | Cosa | Stato |
 |---|---|
-| Piano | [plan.md](plan.md), **`Stato: PROPOSTO`**. Non è approvato: nessuna fase eseguita |
-| Design | [design.md](design.md) — direzione "Hangar Federale", ispirata all'estetica EFSF di Gundam, senza asset protetti |
-| Workspace | `E:\Davide\Progetti\dr-mailroom.code-workspace` creato con le cartelle `api · dr-mailroom` e `fe · dr-mailroom-fe`. La seconda **non esiste ancora**: la crea la Fase 2 |
-| Repo `dr-mailroom-fe` | da creare (Fasi 2–4) |
-| Backend `dr-mailroom` | nessun remote git; `davraf-amuro/dr-mailroom` non esiste su GitHub. L'utente sta chiudendo il lavoro qui prima di passare al frontend |
+| Piano | [plan.md](plan.md) v1.2, **`Stato: IN CORSO`**, approvato dall'utente. Fasi **1–8 `[x]`**. **Prossima: Fase 9** (guscio, router, banner), poi 9.1 (icona), 10 (Caselle), Checkpoint C1 |
+| Design | [design.md](design.md) v1.1, con i contrasti misurati. Lessico: etichetta della specifica + metafora come sopratitolo ("Esegui ora" / "Sortita") |
+| Repo FE | `E:\Davide\Progetti\dr-mailroom-workspace\dr-mailroom-fe`, remote pubblico https://github.com/davraf-amuro/dr-mailroom-fe, **nessun push ancora fatto**. Commit: `e799170` scaffold · `34d8e99` linee guida · `e875f9f` dipendenze · `d5498a0` client API · `dc6b13e` token e tema · `913c47a` componenti shared |
+| Icona | Fase 9.1. L'utente non vuole icone di default. Prompt per ChatGPT in [icon-prompt.md](icon-prompt.md): se l'utente fornisce `dr-mailroom-fe/design/icon-source.png`, ridisegnarla in SVG; altrimenti disegnarla da zero |
+| Backend | Avviato in background in una sessione precedente con `dotnet run --project src/dr-mailroom-api --launch-profile http` (il cron legge le caselle reali). Se non risponde su `http://localhost:5180/api/v1/status`, chiedere all'utente prima di riavviarlo |
+| Issue aperte | [davraf-amuro/dr-fe#1](https://github.com/davraf-amuro/dr-fe/issues/1): `-Package dr-fe` non installa il core |
+| Altri piani | `mailroom-gmail-reader` `INTERROTTO`, da rivedere quando il frontend è pronto |
 
-## Prima di eseguire
+## Cosa c'è già nel codice FE
 
-1. Fatti approvare il piano dall'utente in modo esplicito. Solo dopo porta `Stato:` a `IN CORSO`.
-2. Chiudi le domande aperte del piano:
-   - **D-1**: il repo FE è privato o pubblico?
-   - **D-2**: il backend va pubblicato su GitHub prima? È un'operazione fuori da questo piano.
-   - **D-3**: si conferma il font Saira?
-3. Controlla i piani `IN CORSO` del backend (`2026-10-02-mailroom-gmail-reader`, `2026-10-08-stop-worker-endpoint`). Le regole vietano di eseguire un nuovo piano mentre un altro è `IN CORSO`: chiedi all'utente se sono chiusi, archiviati o da completare.
-4. Le Fasi 6 e 16 richiedono il backend avviato su `http://localhost:5180`, con DB raggiungibile e una chiave API valida in `public/config.json`.
+- `src/services/api/`: `runtimeConfig.ts` (legge `config.json` prima del mount), `client.ts` (`initApiClient`, `getApiClient`, `callApi(target, run)` → `ApiOutcome`), `problem.ts` (`interpretResponse`: 404 su lista → `empty`, 400 → `fieldErrors` camelCase, 401/403 → `unauthorized`, 503 → `databaseUnavailable`, errore di rete → `networkError`), `apiEvents.ts` (`onApiAlarm` per i segnali globali 401/403/503), `schema.d.ts` generato con `npm run gen:api`
+- `src/assets/styles/{tokens,main}.css`: token come utility Tailwind (`bg-surface`, `text-ink-muted`, `border-control-border`, `text-on-federal`…), classi `.stencil`, `.tabular`, `.font-expanded`, `.visually-hidden`; tema scuro con `[data-theme='dark']`
+- `src/composables/shared/useTheme.ts`, `src/stores/ui.ts`
+- `src/components/shared/`: BaseButton, BasePanel, BaseBadge, ConfirmDialog (Reka AlertDialog, `v-model:open`, emette `confirm`, si chiude dal chiamante), SortableTable (generica, `v-model:sort`, slot `cell-<key>`), ProgressMeter, LiveRegion, EmptyState, FieldError, HazardStripe, SerialTag
+- `src/views/HomeView.vue` e `src/router/index.ts`: **provvisori**, da sostituire nella Fase 9
+- `public/config.json`: locale, ignorato da git, con la chiave del backend (`Authentication:ApiKey:ApiKeyValue` in `dr-mailroom/src/dr-mailroom-api/appsettings.local.json`)
+
+## Comandi utili (dalla radice di dr-mailroom-fe)
+
+`npm run dev` · `npm run lint:check` · `npm run format:check` · `npm run type-check` · `npx vitest --run` · `npm run build` · `npm run gen:api` (backend avviato). Screenshot: `npx playwright screenshot [--color-scheme dark] http://localhost:5173 out.png` (Chromium installato).
 
 ## Insidie note
 
-- **`create-vue` va eseguito prima del core `dr-guidelines`**, perché scrive i propri `.editorconfig`, `.gitignore` e `.gitattributes`. Su PowerShell il `--` va quotato: `'--'`.
-- **TypeScript resta alla `~6.0.0`**: con TS 7 `vue-tsc` non funziona.
-- **Lo script `lint` di create-vue usa `--fix`**, quindi non vale come gate. Il gate è `lint:check`, aggiunto nella Fase 5.
-- **Usa `@lucide/vue`, non `lucide-vue-next`**, che è deprecato. Niente `@vueuse/motion` (fermo dal 2025) né `@headlessui/vue` (fermo dal 2024).
-- **`autoRefetch` di Pinia Colada non mette in pausa il polling a scheda nascosta**: va combinato con `enabled` legato a `useDocumentVisibility`.
+- **npm globale aggiornato alla 11.21**: la 10.7.0 falliva con `edgesOut`.
+- **TypeScript resta alla 6.0.x**: `typescript-eslint` 8.71 accetta solo `<6.1.0` (typescript-eslint#10940). `openapi-typescript` ha peer `^5`: risolto con `overrides` in `package.json`.
+- **Il gate è `lint:check`** (`oxlint . && eslint .`): `lint` usa `--fix`.
+- **`schema.d.ts` è escluso da prettier** (`.prettierignore`).
+- **Usa `@lucide/vue`**, tratto 1.75, dimensioni 16/20/24. Niente `@vueuse/motion` né `@headlessui/vue`.
+- **`autoRefetch` di Pinia Colada non mette in pausa il polling a scheda nascosta**: va combinato con `enabled` legato a `useDocumentVisibility`. Il polling si ferma su `Completed`, `Failed`, `Skipped` e `Cancelled`.
 - **`motion-v` ha `reducedMotion="never"` di default**: va impostato `"user"` in `MotionConfig`.
-- **Il giallo `#FCE300` non va mai usato come colore del testo.** I contrasti di design.md sono stime: vanno misurati nella Fase 7.
-- **Nessun nome, logo o sagoma protetti** in `src/`: la verifica finale fa un grep.
-- **Nessun `git push` dall'esecutore**: la fa l'utente oppure `/dr-promote-to`.
+- **Il giallo `#FCE300` non va mai usato come colore del testo** (`--c-on-caution` sopra). `--c-panel-line` è solo decorativo.
+- **Nessun nome, logo o sagoma protetti** in `src/`.
+- **Commit locale a fine fase, nessun `git push`**: la fa l'utente oppure `/dr-promote-to`.
 
 ## Fonti di verità
 
-- Cosa deve fare il frontend: `dr-mailroom/docs/frontend-specifiche.md`
-- Organizzazione del codice: `frontend-organization.instructions.md` del pacchetto `dr-fe` (arriva nel repo FE con la Fase 4)
+- Cosa deve fare il frontend: `dr-mailroom/docs/frontend-specifiche.md` (v1.1)
+- Organizzazione del codice: `dr-mailroom-fe/.github/instructions/frontend-organization.instructions.md`
 - Contratto API: `http://localhost:5180/openapi/v1.json`, documentazione interattiva su `/scalar/v1`
 
-*Handoff v1.0 — 2026-10-08 — claude-opus-5-5*
+*Handoff v1.1 — 2026-10-08 — claude-opus-5-5*

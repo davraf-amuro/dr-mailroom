@@ -12,7 +12,7 @@ Ispirazione: estetica della Federazione Terrestre di Mobile Suit Gundam (Univers
 
 1. **Audace nella struttura, sobrio nel colore.** L'impatto viene da tipografia larga, gerarchia netta e una sola cella "eroe" per vista. Il colore pieno è riservato agli stati e alle azioni primarie.
 2. **La metafora vive nel lessico e nei momenti chiave, non in ogni pixel.** Collegamento della prima casella, lancio di un giro, fine di un giro: lì si fa spettacolo. Il resto è un'interfaccia pulita.
-3. **Etichetta chiara sempre accanto alla metafora.** "Lancia giro", con "Sortita" come sopratitolo; mai solo "Sortita".
+3. **Etichetta chiara sempre accanto alla metafora.** "Esegui ora" (testo della specifica), con "Sortita" come sopratitolo; mai solo "Sortita".
 4. **Non è un pannello admin.** Niente tabelle a tutta pagina come primo contenuto: ogni vista apre con una sintesi leggibile (frase, numero grande, stato), la tabella sta sotto.
 
 ---
@@ -23,7 +23,7 @@ Ispirazione: estetica della Federazione Terrestre di Mobile Suit Gundam (Univers
 |---|---|---|
 | Caselle | Hangar | Caselle collegate |
 | Singola casella | Unità `MR-0003` (matricola = id) | indirizzo email |
-| Giro (manuale) | Sortita | Lancia giro |
+| Giro (manuale) | Sortita | Esegui ora |
 | Giro schedulato | Pattuglia | Giro automatico |
 | Riapplica | Missione di recupero | Riapplica allo storico |
 | Filtri | Regole d'ingaggio | Filtri |
@@ -51,10 +51,31 @@ Definiti come CSS custom properties in `src/assets/styles/tokens.css`, esposti a
 | `--c-alert` | `#C00D1E` | `#FF6B70` | errori, distruttivo |
 | `--c-caution` | `#FCE300` | `#FCE300` | **solo fondo** con testo `--c-ink` light; strisce d'avvertimento |
 | `--c-ok` | `#0F7B4F` | `#4CD69A` | completato |
+| `--c-neutral` | `#5B6478` | `#9AA3B8` | annullato (`Cancelled`), in pausa (`Disabled`) |
+| `--c-control-border` | `#6E7890` | `#7480A3` | bordi di input e controlli (WCAG 1.4.11, ≥ 3:1) |
+| `--c-on-federal` / `--c-on-alert` / `--c-on-ok` | `#FFFFFF` | `#0B1020` | testo su fondo pieno primario, errore, completato |
+| `--c-on-caution` | `#0B1020` | `#0B1020` | testo sul giallo (unico ammesso) |
 
 Vincoli:
 - `--c-caution` **mai** come colore del testo.
-- Contrasti da verificare con un checker sui colori resi (non sui token) prima di chiudere la Fase design — valori di partenza stimati, non misurati.
+- Contrasti **misurati il 2026-10-08** (formula WCAG 2.x, Fase 7):
+
+  | Coppia | Light | Dark |
+  |---|---|---|
+  | ink su bg / surface | 17.66 / 18.93 | 16.01 / 14.52 |
+  | ink-muted su bg / surface | 7.01 / 7.52 | 8.45 / 7.66 |
+  | federal su bg / surface (link, focus) | 11.58 / 12.42 | 6.74 / 6.11 |
+  | alert su surface | 6.33 | 6.20 |
+  | ok su surface | 5.29 | 9.31 |
+  | neutral su surface | 5.93 | 6.79 |
+  | on-federal su federal | 12.42 | 6.74 |
+  | on-alert su alert | 6.33 | 6.84 |
+  | on-ok su ok | 5.29 | 10.27 |
+  | on-caution su caution | 14.54 | 14.54 |
+  | control-border su surface | 4.42 | 4.38 |
+  | panel-line su surface | 1.40 | 1.32 — **solo decorativo**, mai unico confine di un controllo |
+
+  Tutte le coppie di testo ≥ 4.5:1, focus e bordi dei controlli ≥ 3:1.
 - Focus: anello 3 px `--c-federal`, offset 2 px, su tutti gli elementi interattivi.
 - Bersagli di click ≥ 44 px (minimo WCAG 24 px).
 
@@ -74,7 +95,8 @@ Self-hosted via Fontsource (niente chiamate a Google Fonts a runtime: l'app gira
 - **Crocini e righelli**: decorazione SVG negli angoli della cella eroe.
 - **Strisce d'avvertimento**: diagonale giallo/inchiostro **solo** su stati di pericolo (casella con token revocato, DB giù, conferma di eliminazione).
 - **Stencil**: matricole e sopratitoli in maiuscolo spaziato (`letter-spacing: .12em`).
-- Icone: Lucide, sempre accompagnate da testo.
+- Icone d'interfaccia: Lucide, sempre accompagnate da testo, **tratto uniforme 1.75 e dimensioni da una scala sola (16/20/24 px)**: nessuna icona fuori scala o di stile diverso.
+- **Marchio dell'applicazione** (favicon, icona PWA, barra laterale): disegnato da zero, mai l'icona di default del framework. Pannello smussato a 45°, monogramma "MR" stencil, accento tricolore e tacca gialla. Variante semplificata per 16 px.
 
 ---
 
@@ -88,7 +110,7 @@ Self-hosted via Fontsource (niente chiamate a Google Fonts a runtime: l'app gira
 |---|---|---|
 | Caselle `/mailboxes` | stato complessivo: "3 unità operative · 1 da ricollegare" | card per casella (matricola, indirizzo, badge stato, avanzamento backfill, ultimo giro); tabella come vista alternativa |
 | Filtri `/filters` | costruttore a frase del filtro aperto + anteprima live | elenco filtri come card-frase ("Quando scrive **fatture@x.it** e l'oggetto contiene «fattura» → estrai allegati in `fatture/`") |
-| Esecuzioni `/runs` | **ponte di lancio**: select casella + "Lancia giro" + giri in corso con avanzamento | diario di bordo (cronologia) |
+| Esecuzioni `/runs` | **ponte di lancio**: select casella + "Esegui ora" + giri in corso con avanzamento e "Annulla" | diario di bordo (cronologia) |
 | Statistiche `/stats` | frase-titolo calcolata ("Ad agosto 3 mittenti hanno scritto il 40% delle mail") | classifica a barre orizzontali + heatmap mittente × mese con tabella alternativa |
 
 ### Stato vuoto (nessuna casella)
@@ -109,7 +131,7 @@ Ogni segnaposto è un controllo vero (`<input>`, `<select>`, checkbox) con `<lab
 
 | Momento | Animazione | Durata | Con `prefers-reduced-motion` |
 |---|---|---|---|
-| Lancia giro | "catapulta": il pulsante si carica (striscia che scorre), la card del giro scivola nel ponte | < 600 ms | dissolvenza 150 ms |
+| Esegui ora | "catapulta": il pulsante si carica (striscia che scorre), la card del giro scivola nel ponte | < 600 ms | dissolvenza 150 ms |
 | Avanzamento giro | contatore `messagesRead` che scorre (tabular nums) | continuo | aggiornamento istantaneo |
 | Giro completato | timbro "MISSIONE COMPLETATA" stencil sulla card | 400 ms | testo statico |
 | Cambio vista | View Transitions API sul contenuto | 200 ms | nessuna |
@@ -142,4 +164,4 @@ Mai animazioni in loop sullo sfondo. Nessun parallasse.
 - Ricerca di design del 2026-10-08 (subagente): tendenze, pattern UX, palette RX-78-2 fan-made da https://huepick.app/models/gundam-hueforge-rx-78-2, Saira https://fonts.google.com/specimen/Saira/about, pattern progress https://learn.microsoft.com/en-us/windows/win32/uxguide/progress-bars, filtri a frase https://aiuxplayground.com/pattern/nl-filter
 - [frontend-specifiche.md](../../../docs/frontend-specifiche.md)
 
-*Revisione v1.0 — 2026-10-08 — claude-opus-5-5*
+*Revisione v1.1 — 2026-10-08 — claude-opus-5-5* (etichetta "Esegui ora", token `--c-neutral` per annullato/in pausa)
