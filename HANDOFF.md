@@ -1,153 +1,149 @@
 # Progetto
 
-dr-mailroom — repository `E:\Davide\Progetti\dr-mailroom`, branch `tentativo-1` (main: `main`).
+dr-mailroom: backend .NET 10 in `E:\Davide\Progetti\dr-mailroom-workspace\dr-mailroom` (branch `main`, remote `davraf-amuro/dr-mailroom`) e frontend Vue 3 in `E:\Davide\Progetti\dr-mailroom-workspace\dr-mailroom-fe` (branch `main`, remote pubblico `davraf-amuro/dr-mailroom-fe`). Workspace VS Code: `E:\Davide\Progetti\dr-mailroom-workspace\dr-mailroom.code-workspace`.
 
 ---
 
 # Obiettivo
 
-Servizio .NET 10 che legge una o più caselle Gmail in sola lettura e:
-- salva le statistiche per mittente;
-- applica filtri (mittente + al più una condizione sull'oggetto);
-- esegue i processi sulle mail filtrate (estrazione allegati, allerta);
-- gira da solo con un cron Quartz e on-demand via API REST;
-- per il frontend esiste solo la specifica.
+Realizzare `dr-mailroom-fe`, la SPA Vue 3 che implementa `docs/frontend-specifiche.md` (v1.1) con la direzione visiva "Hangar Federale".
 
-Piano di riferimento: `.ai/plans/2026-10-02-mailroom-gmail-reader/plan.md` (`Stato: IN CORSO`). Brief: `briefs/20261001-01.md`.
+- Piano: `.ai/plans/2026-10-08-dr-mailroom-fe/plan.md` (v1.2, `Stato: IN CORSO`, approvato dall'utente)
+- Design: `.ai/plans/2026-10-08-dr-mailroom-fe/design.md` (v1.1)
+- Nota di ripresa: `.ai/plans/2026-10-08-dr-mailroom-fe/handoff.md` (v1.1)
 
 ---
 
 # Stato corrente
 
-- Fasi 1–18 del piano marcate `[x]`. Fase 19 (verifica end-to-end) `[ ]`.
-- Codice completo in `src/dr-mailroom-api`, `src/dr-mailroom-core` e `test/dr-mailroom-tests`.
-- Migration `InitialCreate` applicata al DB di sviluppo `dr-mailroom` su SQL Server `spectre` (macchina locale).
-- Immagine Docker `dr-mailroom-api:local` costruita; container `dr-mailroom-api` in esecuzione, porta host 5180.
-- Nessuna casella Gmail ancora collegata; nessun test con Gmail reale.
-- Nessun commit dalla `45be932`: tutto il lavoro è nella working tree, non committato.
+- Fasi 1–8 del piano `[x]`; Fasi 9, 9.1, 10, Checkpoint C1, 11–18 `[ ]`.
+- Repo FE: 6 commit locali, ultimo `913c47a`. **Nessun push** su `origin`.
+- Repo backend: ultimo commit `084ea00` (solo file del piano). Nessun push di questo commit verificato in sessione.
+- Backend in esecuzione via `dotnet run --project src/dr-mailroom-api --launch-profile http`, avviato in background in questa sessione; `GET /api/v1/status` → `databaseReady: true`. Il cron Quartz è attivo e legge le caselle reali.
+- `public/config.json` del FE presente in locale con la chiave API del backend, ignorato da git.
 
 ---
 
 # Componenti completati
 
-- Configurazione tipizzata `Mailroom:*` con validazione all'avvio (`src/dr-mailroom-core/Configuration/`).
-- Modello EF Core: 9 tabelle, 2 viste statistiche, vincoli UNIQUE e CHECK, migration (`src/dr-mailroom-core/Infrastructure/Mailroom/`).
-- Cifratura dei refresh token con Data Protection e key ring su file (`src/dr-mailroom-core/Security/`).
-- Client Gmail in sola lettura: retry su 429/5xx, `HistoryExpiredException`, `TokenRevokedException` (`src/dr-mailroom-core/Gmail/`).
-- Flusso OAuth di collegamento con state firmato (`GmailAuthorizer`, `OAuthStateProtector`).
-- Ingestione: backfill riprendibile e incrementale da `historyId`, insert idempotente (`src/dr-mailroom-core/Ingestion/`).
-- Motore dei filtri `StartsWith`/`Contains`/`Regex` con timeout (`src/dr-mailroom-core/Filtering/`).
-- Processi `AttachmentExtractionProcess` e `AlertProcess` (`src/dr-mailroom-core/Processes/`).
-- Orchestrazione dei giri, lock `sp_getapplock`, giro schedulato parallelo (`src/dr-mailroom-core/Runs/`).
-- Scheduler Quartz 4.3: job cron e job on-demand (`src/dr-mailroom-api/Scheduling/`).
-- API REST: 21 path sotto `/api/v1` più `/health`, chiave API, OpenAPI e Scalar (`src/dr-mailroom-api/Endpoints/`).
-- Container: `Dockerfile`, `docker-compose.yml`, `.env.example`.
-- Documentazione: `README.md`, `docs/architettura.md` (v1.2), `docs/frontend-specifiche.md`, `docs/setup-google-oauth.md`, `docs/avvio-e-configurazione.md`.
+- Scaffold create-vue 3.24.0 (TS, router, Pinia, Vitest, Playwright, ESLint, Prettier)
+- Linee guida installate: `dr-guidelines` (916b257) e `dr-fe` (6f66968)
+- Dipendenze dello stack (versioni nella tabella del piano), script `lint:check`, `format:check`, `gen:api`; porta Vite fissa 5173
+- Configurazione runtime da `config.json` e client API tipizzato (`src/services/api/`)
+- Token di design, font self-hosted (Saira, JetBrains Mono), tema chiaro/scuro (`useTheme`, store `ui`)
+- 11 componenti generici in `src/components/shared/`
 
 ---
 
 # Componenti in lavorazione
 
-- Fase 19 del piano (verifica end-to-end): non iniziata, in attesa delle informazioni dall'utente (vedi "Informazioni mancanti").
+- Nessuno (la Fase 8 è chiusa; la Fase 9 non è iniziata)
 
 ---
 
 # Componenti mancanti
 
-- Frontend `dr-mailroom-fe`: fuori scope, esiste solo la specifica.
-- Software esterno che notifica le allerte: fuori scope.
+- Fase 9: guscio (sidebar, header), router per dominio, banner di stato del servizio
+- Fase 9.1: icona dell'applicazione (favicon, PNG, manifest, `AppMark.vue`)
+- Fase 10: vista Caselle; Checkpoint C1 con l'utente
+- Fasi 11–13: viste Filtri, Esecuzioni, Statistiche
+- Fase 14: test end-to-end Playwright
+- Fase 15: container nginx
+- Fase 16: profili di debug e compound nel workspace
+- Fase 17: README FE e aggiornamento dei docs del backend
+- Fase 18: gate di qualità e `/dr-audit-fe`
 
 ---
 
 # File modificati
 
-| Percorso | Motivo |
-|---|---|
-| `.ai/plans/2026-10-02-mailroom-gmail-reader/plan.md` | stato, esiti di fase, decisioni D15–D18 e C1–C12, divergenze |
-| `.ai/dr-guidelines-packages.json` | installazione dei pacchetti dr-dotnet-backend, dr-minimalapi, dr-efdb |
-| `.github/instructions/*`, `.github/prompts/*`, `.claude/skills/dr-audit-api/` | portati dagli installer dei pacchetti |
-| `.gitignore` | esclusi `Gmail/`, `client_secret*.json`, `logs/`, `src/dr-mailroom-api/data/`, `.env`, `/data/` |
-| `Directory.Build.props`, `global.json` | portati da dr-dotnet-backend; sostituiti i placeholder Authors/Company/Product |
-| `dr-mailroom.slnx` | solution con 3 progetti |
-| `src/dr-mailroom-core/**` | dominio, persistenza, Gmail, ingestione, filtri, processi, giri |
-| `src/dr-mailroom-api/**` | host: Program, endpoint, servizi, DTO, validatori, scheduling, appsettings, `.http`, launchSettings |
-| `test/dr-mailroom-tests/**` | test unitari, test di integrazione degli endpoint, test SQL del lock |
-| `.vscode/launch.json`, `.vscode/tasks.json` | profili di debug `coreclr` |
-| `Dockerfile`, `docker-compose.yml`, `.dockerignore`, `.env.example` | container |
-| `README.md`, `docs/*.md` | documentazione |
-| `src/dr-mailroom-api/appsettings.local.json`, `.env` | segreti locali (ignorati da git, mai committati) |
+Repo `dr-mailroom` (backend):
+
+- `.ai/plans/2026-10-08-dr-mailroom-fe/plan.md`: v1.1 (allineamento alla specifica v1.1), v1.2 (fase icona), path del workspace, D-1/D-2/D-3 chiuse, stato delle fasi 1–8
+- `.ai/plans/2026-10-08-dr-mailroom-fe/design.md`: etichetta "Esegui ora", token `--c-neutral`, `--c-control-border`, `--c-on-*`, tabella dei contrasti misurati, regola sulle icone
+- `.ai/plans/2026-10-08-dr-mailroom-fe/handoff.md`: stato a fine sessione
+- `.ai/plans/2026-10-08-dr-mailroom-fe/icon-prompt.md`: nuovo, prompt per generare l'icona con un generatore esterno
+- `.ai/plans/2026-10-02-mailroom-gmail-reader/plan.md`: nota "da rivedere quando il frontend è pronto"
+- `.ai/permessi-richiesti.md` (ignorato da git): 4 righe di permessi
+- `HANDOFF.md`, `SESSION.md`, `DECISIONI.md`, `NEXT_PROMPT.md`: questo handoff
+
+Repo `dr-mailroom-fe`: tutti i file sono nuovi; elenco per commit in `git log` (da `e799170` a `913c47a`).
 
 ---
 
 # Decisioni progettuali
 
-- Le decisioni complete sono in `DECISIONI.md` e nel piano (D1–D18, T1–T12, C1–C12).
+Dettaglio in `DECISIONI.md`. In sintesi:
+
+- Repo FE pubblico
+- TypeScript 6.0.x (non 7)
+- `overrides` per il peer di `openapi-typescript`
+- Chiave API solo in memoria, letta da `config.json`
+- Font Saira confermato "per ora"
+- Etichette operative dalla specifica, metafora solo come sopratitolo
+- Commit locale per fase, Checkpoint C1 dopo la Fase 10
+- Fase dedicata all'icona dell'applicazione
+- Token aggiuntivi per bordi dei controlli e testo su fondi pieni
 
 ---
 
 # Problemi aperti
 
-- **Limitazione:** le mail arrivate durante il backfill e già lette da esso non passano dai filtri (rimedio: riapplica).
-- **Limitazione:** un arresto tra il salvataggio dei messaggi e i processi lascia quei messaggi senza processi (rimedio: riapplica).
-- **Limitazione:** `HasAttachments` è dedotto da `multipart/mixed`, quindi può essere impreciso.
-- **Limitazione:** la chiave API in una SPA è visibile nel browser; documentato in `docs/frontend-specifiche.md`.
-- **Debito tecnico:** `EnableSensitiveDataLogging` attivo (scelta dell'utente, C4): i log EF possono contenere il refresh token cifrato.
-- **Attività incompleta:** Fase 19 del piano.
-- **Attività incompleta:** redirect URI in Google Console da aggiornare a `/api/v1/mailboxes/connect/callback` (l'utente lo farà più tardi).
-- **Issue esterne aperte su `davraf-amuro/dr-guidelines`:**
-  - #9 `readme-structure` non applicabile agli host;
-  - #10 standard per il documento di architettura;
-  - #11 riallineamento del documento di architettura al codice.
+- **Attività incompleta**: Fasi 9–18 del piano FE.
+- **Limitazione**: `dr-guidelines-install.ps1 -Package dr-fe` non installa il core; segnalato in `davraf-amuro/dr-fe#1`.
+- **Limitazione**: `typescript-eslint` 8.71 non supporta TypeScript 7 (`typescript-eslint/typescript-eslint#10940`).
+- **Debito tecnico**: `openapi-typescript` 7.13 dichiara peer `typescript ^5.x`; usato con TS 6 tramite `overrides`.
+- **Debito tecnico**: `npm audit` segnala 4 vulnerabilità high solo nelle dipendenze di sviluppo (`braces`, GHSA-vfj7-8cjw-p6xm); 0 in produzione.
+- **Attività incompleta**: il piano backend `2026-10-02-mailroom-gmail-reader` è `INTERROTTO`, da rivedere a FE pronto.
+- **Debito tecnico**: `src/views/HomeView.vue` e `src/router/index.ts` del FE sono provvisori.
+- **Attività incompleta**: il riferimento "vuejs/language-tools #6121" nel piano non è risolvibile con `gh` (annotato nel piano).
 
 ---
 
 # TODO
 
-1. Ottenere dall'utente la conferma del redirect URI in Google Console e il nome della casella e del mittente campione.
-2. Eseguire la Fase 19 del piano:
-   - collegamento della casella;
-   - backfill;
-   - verifica dello stato letto/non letto;
-   - confronto delle statistiche con Gmail;
-   - filtro di test (anche `Regex`) su una mail nuova;
-   - riapplica con solo `AttachmentExtraction` eseguita due volte;
-   - doppio giro manuale → 409;
-   - `HistoryId` scaduto.
-3. Verificare tutti i "Criteri di verifica finale" del piano.
-4. Eseguire `/dr-verify-plan`; se passa, impostare `Stato: COMPLETATO` nel piano.
-5. Commit locale del lavoro, solo su richiesta dell'utente. Nessun push senza il gate `dotnet format --verify-no-changes`.
+1. Fase 9: guscio, route `/mailboxes` (default), `/filters`, `/runs`, `/stats`, 404, banner di stato con `GET /status` ogni 60 s e `POST /status/retry-database`, ascolto di `onApiAlarm`
+2. Fase 9.1: icona; usare `dr-mailroom-fe/design/icon-source.png` se l'utente la fornisce, altrimenti disegnarla da zero
+3. Fase 10: vista Caselle con Pausa/Riprendi ed Elimina
+4. Checkpoint C1: mostrare all'utente vista Caselle (light/dark), banner, stato vuoto, icona; raccogliere il giudizio su Saira
+5. Fasi 11–18 nell'ordine del piano
+6. Chiedere all'utente se fermare il backend avviato in background
 
 ---
 
 # Validazione
 
-- **Build:** `dotnet build dr-mailroom.slnx` → 0 avvisi, 0 errori (ultima esecuzione in sessione, Fase 15).
-- **Test:** `dotnet test dr-mailroom.slnx` → 87 superati, 1 ignorato (test SQL senza `MAILROOM_TEST_SQL`). Con `MAILROOM_TEST_SQL` impostata: 69/69 nell'esecuzione della Fase 14, prima dei test degli endpoint.
-- **Lint:** `dotnet format dr-mailroom.slnx --verify-no-changes` → exit 0 (Fase 15).
-- **Container:** `docker build` exit 0; `/health` 200; `/api/v1/status` `databaseReady: true`; 401 senza chiave.
-- Dopo la Fase 15 il codice non è stato toccato; solo documentazione e file Docker. Build e test non sono stati rieseguiti dopo le modifiche al Dockerfile.
+Esiti osservati in sessione sul repo FE, dopo l'ultimo commit `913c47a`:
+
+- build (`npm run build`): exit 0
+- test (`npx vitest --run`): 21 passati su 21
+- lint (`npm run lint:check`): exit 0
+- type-check (`npm run type-check`): exit 0
+- format (`npm run format:check`): exit 0
+- prova dal vivo del client: 200 con chiave e `Access-Control-Allow-Origin: http://localhost:5173`, 401 senza chiave
+
+Backend: build e test non eseguiti in questa sessione → Sconosciuto.
 
 ---
 
 # Rischi
 
-- Tutto il lavoro è non committato sul branch `tentativo-1`: una perdita della working tree cancella il progetto.
-- La cartella `data/keys` (key ring, ignorata da git): se va persa, i refresh token salvati non si decifrano più.
-- Il container occupa la porta 5180: va fermato prima di un `dotnet run` locale sulla stessa porta.
-- La password SQL è stata scritta in chiaro nella conversazione: rotazione consigliata.
-- Il redirect URI in Google Console non è ancora allineato alla callback versionata: il collegamento OAuth fallirebbe con `redirect_uri_mismatch`.
+- Il backend in background esegue il cron sulle caselle Gmail reali finché non viene fermato.
+- `public/config.json` contiene la chiave API in un repo pubblico: è ignorato da git; la Fase 18 prevede il controllo `git ls-files public/config.json`.
+- Il CORS del backend ammette solo `http://localhost:5173`: la Fase 15 (container) richiede di allineare `Mailroom:Frontend:BaseUrl`.
+- Gli id nello schema OpenAPI sono `number | string` (int64 di .NET 10): i componenti di dominio devono gestire entrambi.
+- Lo script `lint` di create-vue usa `--fix`: il gate è `lint:check`.
 
 ---
 
 # Prossimo passo consigliato
 
-Chiedere all'utente la conferma del redirect URI `http://localhost:5180/api/v1/mailboxes/connect/callback` in Google Console, la casella da collegare e il mittente campione, poi avviare la Fase 19.
+Eseguire la Fase 9 del piano `.ai/plans/2026-10-08-dr-mailroom-fe/plan.md` nel repo `dr-mailroom-fe`.
 
 ---
 
 # Informazioni mancanti
 
-- Stato del redirect URI in Google Console: sconosciuto.
-- Casella Gmail da usare per la Fase 19: sconosciuta.
-- Mittente campione e conteggio atteso: sconosciuti.
-- Se l'utente vuole un commit locale prima della Fase 19: sconosciuto.
+- Se l'utente fornirà un'immagine sorgente per l'icona (Fase 9.1)
+- Se il backend avviato in background va fermato o lasciato attivo
+- Quando fare il push dei commit locali di entrambi i repo

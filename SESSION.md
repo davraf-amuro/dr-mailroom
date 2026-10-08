@@ -1,20 +1,24 @@
-# Sessione 2026-10-02 → 2026-10-06
+# Sessione 2026-10-08 → 2026-10-09
 
 | # | Cosa fatto | Perché | Risultato |
 |---|---|---|---|
-| 1 | Piano portato a `IN CORSO`, Fase 1 prerequisiti | richiesta "esegui il piano" | SDK 10.0.401, dotnet-ef, pwsh 7.6, Docker CLI, SQL Server 2022 su `spectre` con DB `dr-mailroom` e `db_owner` verificati |
-| 2 | Guida all'utente per Google Cloud (client web, branding, pubblicazione) | prerequisito OAuth | JSON client in `Gmail/`, escluso da git |
-| 3 | Fase 2: `/dr-scaffold-solution` | struttura del progetto | `dr-mailroom.slnx`, 3 progetti, pacchetti dr-minimalapi, dr-efdb e dr-dotnet-backend |
-| 4 | Fase 3: lettura delle istruzioni, convenzioni C1–C12 | allineare i percorsi alle regole | approvate dall'utente (Serilog sì, callback versionato, sensitive logging come da istruzione) |
-| 5 | Fase 4: `docs/architettura.md` | richiesto dal piano | v1.0 |
-| 6 | Fasi 5–8: opzioni, entità EF, migration, protezione dei token | piano | migration applicata su conferma dell'utente; test verdi |
-| 7 | Fasi 9–13: client Gmail, ingestione, filtri, processi | piano | test con handler HTTP finto e EF InMemory |
-| 8 | Fase 14: orchestrazione, lock, Quartz 4.3 | piano | test DI reale + integrazione `sp_getapplock` su SQL reale |
-| 9 | Fase 15: decisioni D15–D18 chieste all'utente, endpoint | obbligo input-validation | 21 path, 87 test verdi, avvio reale ok |
-| 10 | Fase 17: `docs/frontend-specifiche.md` | piano | tutti gli endpoint mappati |
-| 11 | Fase 16: container (dopo l'avvio di Docker Desktop) | piano | build ok, `/health` 200, DB via `host.docker.internal`, key ring persistente |
-| 12 | Fase 18: divergenza su `readme-structure` | regola non applicabile all'host | scelta dell'utente: README snello + `docs/avvio-e-configurazione.md`, `docs/setup-google-oauth.md` |
-| 13 | Issue dr-guidelines#9 | segnalare la divergenza | aperta |
-| 14 | `docs/architettura.md` v1.2 | imprecisioni rispetto al codice segnalate su domanda dell'utente | diagrammi e modello dati allineati, sezione "Limiti noti" |
-| 15 | Issue dr-guidelines#10 e #11 | rendere il documento di architettura uno standard | aperte |
-| 16 | `/dr-handoff` | richiesta dell'utente | questi file |
+| 1 | Lettura di handoff e piani in `.ai/plans/` | richiesta dell'utente: ritrovare il lavoro sul frontend | piano FE `PROPOSTO` trovato; path del workspace e D-2 superati |
+| 2 | Chiuse D-1 (repo pubblico), D-2 (superata), D-3 (Saira per ora); nota sul piano `mailroom-gmail-reader` | risposte dell'utente | piano e handoff aggiornati |
+| 3 | Revisione del piano rispetto alla specifica v1.1 | richiesta dell'utente | piano v1.1: pausa/ripresa, annullamento giri, 401, endpoint mancanti, CORS, Checkpoint C1, commit per fase |
+| 4 | Approvazione e Fase 1 | "approvo" | prerequisiti ok; piano `IN CORSO` |
+| 5 | Fase 2: scaffold create-vue | piano | ok; `npm install` fallito con npm 10.7.0 (`edgesOut`), eseguito con `npx npm@11` |
+| 6 | Fase 3: git e repo GitHub pubblico senza push | piano, D-1 | `e799170`, `davraf-amuro/dr-mailroom-fe` creato |
+| 7 | Fase 4: linee guida | piano | `-Package dr-fe` non installa il core; secondo lancio senza parametri; `34d8e99` |
+| 8 | Fase 5: dipendenze e script | piano | override per `openapi-typescript`; `e875f9f` |
+| 9 | npm globale → 11.21.0 | richiesta dell'utente | ok |
+| 10 | Verifica di TypeScript 7 | richiesta dell'utente | resta 6.0.3: `typescript-eslint` ha peer `<6.1.0` |
+| 11 | Issue `davraf-amuro/dr-fe#1` via `/dr-file-feedback` | richiesta dell'utente | aperta con label `bug` |
+| 12 | Avvio del backend in background | scelta B dell'utente | in ascolto su 5180, DB pronto |
+| 13 | Fase 6: config runtime e client API | piano | `gen:api` ok, 16 test, prova dal vivo ok; `d5498a0` |
+| 14 | Fase 7: token, font, tema | piano | contrasti misurati, screenshot light/dark; `dc6b13e` |
+| 15 | Fase 9.1 aggiunta al piano (v1.2), regola icone in design.md, memoria `feedback-cura-icone` | richiesta dell'utente: niente icona di ripiego | piano aggiornato |
+| 16 | `icon-prompt.md` | richiesta dell'utente di usare ChatGPT; nessuno strumento per raggiungerlo da qui | prompt pronto da incollare |
+| 17 | Fase 8: componenti generici | piano | 21 test verdi; `913c47a` |
+| 18 | handoff.md v1.1 nella cartella del piano; dev server Vite fermato | richiesta dell'utente di alleggerire il contesto | stato salvato su disco |
+| 19 | Commit dei file di piano nel backend | richiesta dell'utente | `084ea00` |
+| 20 | `/dr-handoff` | richiesta dell'utente | questi file |

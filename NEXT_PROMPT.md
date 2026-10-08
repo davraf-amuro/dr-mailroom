@@ -1,56 +1,41 @@
 # Prompt di ripresa
 
-Lavori sul progetto **dr-mailroom** in `E:\Davide\Progetti\dr-mailroom`, branch `tentativo-1`. Rispondi in italiano. Segui `CLAUDE.md` e `.github/copilot-instructions.md`; per il ciclo di lavoro `.github/instructions/dev-cycle.instructions.md` e `plan-tracking.instructions.md`.
+Lavori sul frontend **dr-mailroom-fe** (Vue 3 + Vite + TypeScript 6.0 + Pinia + Tailwind v4) in `E:\Davide\Progetti\dr-mailroom-workspace\dr-mailroom-fe`, che consuma l'API .NET 10 di `E:\Davide\Progetti\dr-mailroom-workspace\dr-mailroom`. Rispondi in italiano. Segui `CLAUDE.md` e `.github/copilot-instructions.md` di entrambi i repo; per il ciclo di lavoro `dev-cycle.instructions.md` e `plan-tracking.instructions.md`; per la struttura del codice FE `dr-mailroom-fe/.github/instructions/frontend-organization.instructions.md`.
 
 ## Contesto
 
-dr-mailroom è un servizio .NET 10 (Minimal API + Quartz + EF Core su SQL Server):
-- legge caselle Gmail in sola lettura con OAuth (scope `gmail.readonly`);
-- indicizza le mail per le statistiche per mittente;
-- applica filtri (mittente + StartsWith/Contains/Regex sull'oggetto);
-- esegue i processi: estrazione allegati, allerta.
+- dr-mailroom legge caselle Gmail in sola lettura, applica filtri, estrae allegati e produce statistiche per mittente.
+- Il frontend implementa `dr-mailroom/docs/frontend-specifiche.md` (v1.1) con la direzione visiva "Hangar Federale" di `dr-mailroom/.ai/plans/2026-10-08-dr-mailroom-fe/design.md`.
+- Autenticazione: header `x-api-key`, chiave letta a runtime da `public/config.json` (locale, ignorato da git) e tenuta solo in memoria.
 
 ## Obiettivo
 
-Completare il piano `.ai/plans/2026-10-02-mailroom-gmail-reader/plan.md` (`Stato: IN CORSO`).
+Completare il piano `dr-mailroom/.ai/plans/2026-10-08-dr-mailroom-fe/plan.md` (v1.2, `Stato: IN CORSO`, approvato).
 
 ## Stato
 
-- Fasi 1–18 `[x]`; manca la **Fase 19** (verifica end-to-end su Gmail reale).
-- Build: 0 avvisi; test: 87 verdi e 1 ignorato; `dotnet format --verify-no-changes` exit 0.
-- DB `dr-mailroom` su `spectre` migrato.
-- Container `dr-mailroom-api` attivo sulla porta 5180, configurato tramite `.env`.
-- Nessuna casella collegata.
-- Lavoro non committato.
+- Fasi 1–8 `[x]`. Repo FE: ultimo commit locale `913c47a`, nessun push.
+- Esistono già: `src/services/api/` (`runtimeConfig`, `client` con `callApi`, `problem` con `interpretResponse`, `apiEvents` con `onApiAlarm`, `schema.d.ts` generato), token e tema (`src/assets/styles/`, `useTheme`, store `ui`), 11 componenti in `src/components/shared/`.
+- `src/views/HomeView.vue` e `src/router/index.ts` sono provvisori.
+- Ultimi controlli: build, lint:check, type-check, format:check verdi; 21 test verdi.
+- Backend avviato in una sessione precedente su `http://localhost:5180`. Se `GET /api/v1/status` non risponde, chiedi all'utente prima di avviarlo: il cron legge le caselle reali.
 
 ## File rilevanti
 
-- Piano: `.ai/plans/2026-10-02-mailroom-gmail-reader/plan.md` (sezioni "Fase 19" e "Criteri di verifica finale")
-- Documenti: `docs/architettura.md`, `docs/avvio-e-configurazione.md`, `docs/setup-google-oauth.md`, `docs/frontend-specifiche.md`
-- Richieste di esempio: `src/dr-mailroom-api/dr-mailroom-api.http`
-- Codice: `src/dr-mailroom-core/Runs/RunOrchestrator.cs`, `src/dr-mailroom-core/Ingestion/MailboxIngestionService.cs`, `src/dr-mailroom-api/Program.cs`
-- Segreti locali (non leggerli in output, non committarli): `src/dr-mailroom-api/appsettings.local.json`, `.env`, `Gmail/`
+- `dr-mailroom/.ai/plans/2026-10-08-dr-mailroom-fe/plan.md`, `design.md`, `handoff.md`, `icon-prompt.md`
+- `dr-mailroom/docs/frontend-specifiche.md`
+- `dr-mailroom-fe/src/services/api/*.ts`, `src/components/shared/*.vue`, `src/assets/styles/*.css`
+- `dr-mailroom/HANDOFF.md`, `DECISIONI.md`
 
 ## Problemi aperti
 
-- Redirect URI in Google Console da portare a `http://localhost:5180/api/v1/mailboxes/connect/callback`: l'utente deve confermarlo.
-- Limiti noti in `docs/architettura.md`, sezione "Limiti noti".
-- Issue su davraf-amuro/dr-guidelines #9, #10, #11 (non bloccanti).
+- `typescript-eslint` non supporta TS 7: restare su 6.0.x.
+- `openapi-typescript` usato con TS 6 tramite `overrides` in `package.json`.
+- Il gate di lint è `npm run lint:check`, non `lint` (che usa `--fix`).
+- Gli id dell'API sono `number | string`.
+- Icona (Fase 9.1): niente icona di default. Se esiste `dr-mailroom-fe/design/icon-source.png`, ridisegnala in SVG; altrimenti disegnala da zero.
+- Nessun `git push`: lo fa l'utente o `/dr-promote-to`.
 
 ## Prossimo passo
 
-1. Chiedi all'utente:
-   - la conferma del redirect URI in Google Console;
-   - la casella Gmail da collegare;
-   - un mittente campione con il conteggio atteso.
-2. Esegui la Fase 19 del piano:
-   - `GET /api/v1/mailboxes/connect` con l'header `x-api-key` (chiave in `.env`, non mostrarla), consenso nel browser;
-   - backfill con `POST /api/v1/runs` e polling su `GET /api/v1/runs/{id}`;
-   - verifica dello stato letto/non letto;
-   - confronto delle statistiche;
-   - filtro di test;
-   - riapplica solo allegati eseguita due volte;
-   - doppio avvio → 409.
-3. Verifica i criteri finali, esegui `/dr-verify-plan`, poi imposta `Stato: COMPLETATO`.
-
-Nessun `git push`. Commit solo su richiesta dell'utente.
+Esegui la **Fase 9** del piano (guscio con sidebar e header, route `/mailboxes` default, `/filters`, `/runs`, `/stats`, 404, banner "Comunicazioni" con `GET /api/v1/status` ogni 60 s e "Riprova connessione" su `POST /api/v1/status/retry-database`, `aria-live="assertive"` solo per DB giù, ascolto di `onApiAlarm`, `MotionConfig reducedMotion="user"`). Verifica con i comandi della fase, fai il commit locale, segna `[x]` nel piano e prosegui con la Fase 9.1.
