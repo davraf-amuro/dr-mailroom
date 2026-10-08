@@ -1,0 +1,195 @@
+using dr_mailroom_core.Enums;
+using dr_mailroom_core.Gmail;
+using dr_mailroom_core.Runs;
+using dr_mailroom_tests.Ingestion;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+
+namespace dr_mailroom_tests.Runs;
+
+/// <summary>Verifica il giro completo: lock (T8), backfill senza processi (D12), riapplica (D13), isolamento tra caselle (T9).</summary>
+public sealed class RunOrchestratorTests : IAsyncDisposable
+{
+    private readonly RunTestHarness _harness = new();
+
+    public ValueTask DisposeAsync() => _harness.DisposeAsync();
+
+    /// <summary>Casella con storico di due mail con allegato e backfill già eseguito.</summary>
+    private async Task<FakeGmailSession> MailboxAfterBackfillAsync(int mailboxId)
+    {
+        var session = await _harness.AddMailboxAsync(mailboxId);
+        session.ProfileHistoryId = 500;
+        session.Pages[string.Empty] = new MessageIdPage(["old1", "old2"], null);
+        session.AttachmentParts.Add(new GmailAttachmentPart("1", "fattura.pdf", "application/pdf", 20, "att-1", null));
+
+        var backfill = await _harness.RunAsync(mailboxId, RunTrigger.Manual);
+        Assert.Equal(RunStatus.Completed, backfill.Status);
+        return session;
+    }
+
+    [Fact]
+    public async Task BusyMailbox_RunIsSkipped_AndNothingIsReadAsync()
+    {
+        var session = await _harness.AddMailboxAsync(1);
+        session.Pages[string.Empty] = new MessageIdPage(["a"], null);
+        _harness.Lock.Occupy(1);
+
+        var run = await _harness.RunAsync(1, RunTrigger.Manual);
+
+        Assert.Equal(RunStatus.Skipped, run.Status);
+        Assert.Equal(RunOrchestrator.MailboxBusyMessage, run.ErrorSummary);
+        Assert.Empty(session.RequestedPageTokens);
+    }
+
+    [Fact]
+    public async Task Backfill_CreatesNoAlertsNorFilesAsync()
+    {
+        await _harness.AddFilterAsync(1, null, ProcessType.Alert, ProcessType.AttachmentExtraction);
+
+        await MailboxAfterBackfillAsync(1);
+
+        await using var db = _harness.Db.CreateDbContext();
+        Assert.Equal(2, await db.Messages.CountAsync());
+        Assert.Empty(await db.Alerts.ToListAsync());
+        Assert.Empty(await db.ProcessExecutions.ToListAsync());
+        Assert.Empty(_harness.FilesOnDisk());
+    }
+
+    [Fact]
+    public async Task IncrementalRun_AppliesFiltersToNewMessagesOnlyAsync()
+    {
+        await _harness.AddFilterAsync(1, null, ProcessType.Alert, ProcessType.AttachmentExtraction);
+        var session = await MailboxAfterBackfillAsync(1);
+        session.Changes = new HistoryChanges(["new1"], 600);
+
+        var run = await _harness.RunAsync(1, RunTrigger.Manual);
+
+        Assert.Equal(RunStatus.Completed, run.Status);
+        Assert.Equal(1, run.MessagesProcessed);
+        await using var db = _harness.Db.CreateDbContext();
+        var alert = await db.Alerts.Include(a => a.Message).SingleAsync();
+        Assert.Equal("new1", alert.Message!.GmailMessageId);
+        Assert.Single(_harness.FilesOnDisk());
+    }
+
+    [Fact]
+    public async Task ManyNewMessages_AreAllProcessedByParallelConsumersAsync()
+    {
+        await _harness.AddFilterAsync(1, null, ProcessType.Alert, ProcessType.AttachmentExtraction);
+        var session = await MailboxAfterBackfillAsync(1);
+        var newIds = Enumerable.Range(1, 12).Select(i => "new" + i).ToList();
+        session.Changes = new HistoryChanges(newIds, 600);
+
+        var run = await _harness.RunAsync(1, RunTrigger.Manual);
+
+        Assert.Equal(RunStatus.Completed, run.Status);
+        Assert.Equal(12, run.MessagesProcessed);
+        Assert.Equal(0, run.ErrorCount);
+        await using var db = _harness.Db.CreateDbContext();
+        Assert.Equal(12, await db.Alerts.CountAsync());
+        Assert.Equal(12, _harness.FilesOnDisk().Length);
+        Assert.Equal(1, session.MaxConcurrentMetadataReads);
+    }
+
+    [Fact]
+    public async Task ProducerFailure_MessagesAlreadyQueuedAreStillProcessedAsync()
+    {
+        await _harness.AddFilterAsync(1, null, ProcessType.Alert);
+        var session = await MailboxAfterBackfillAsync(1);
+
+        // History scaduta → scansione completa: la prima pagina porta "n1", la seconda fallisce
+        session.Changes = null;
+        session.Pages[string.Empty] = new MessageIdPage(["old1", "old2", "n1"], "p2");
+        session.FailOnPageToken = "p2";
+
+        var run = await _harness.RunAsync(1, RunTrigger.Manual);
+
+        Assert.Equal(RunStatus.Failed, run.Status);
+        await using var db = _harness.Db.CreateDbContext();
+        var alert = await db.Alerts.Include(a => a.Message).SingleAsync();
+        Assert.Equal("n1", alert.Message!.GmailMessageId);
+    }
+
+    [Fact]
+    public async Task Reapply_AttachmentsOnly_CreatesNoAlerts_AndIsIdempotentAsync()
+    {
+        var filterId = await _harness.AddFilterAsync(1, null, ProcessType.Alert, ProcessType.AttachmentExtraction);
+        var session = await MailboxAfterBackfillAsync(1);
+
+        var first = await _harness.RunAsync(1, RunTrigger.Reapply, filterId, nameof(ProcessType.AttachmentExtraction));
+        var second = await _harness.RunAsync(1, RunTrigger.Reapply, filterId, nameof(ProcessType.AttachmentExtraction));
+
+        Assert.Equal(RunStatus.Completed, first.Status);
+        Assert.Equal(2, first.MessagesRead);
+        Assert.Equal(2, first.MessagesProcessed);
+        Assert.Equal(RunStatus.Completed, second.Status);
+
+        await using var db = _harness.Db.CreateDbContext();
+        Assert.Empty(await db.Alerts.ToListAsync());
+        Assert.Equal(2, await db.ExtractedAttachments.CountAsync());
+        Assert.Equal(2, _harness.FilesOnDisk().Length);
+        Assert.Equal(2, session.DownloadedPartIds.Count);
+    }
+
+    [Fact]
+    public async Task Reapply_WithoutProcessList_AppliesAllFilterProcessesAsync()
+    {
+        var filterId = await _harness.AddFilterAsync(1, null, ProcessType.Alert);
+        await MailboxAfterBackfillAsync(1);
+
+        await _harness.RunAsync(1, RunTrigger.Reapply, filterId);
+
+        await using var db = _harness.Db.CreateDbContext();
+        Assert.Equal(2, await db.Alerts.CountAsync());
+        Assert.Empty(_harness.FilesOnDisk());
+    }
+
+    [Fact]
+    public async Task ErrorOnMailboxA_DoesNotBlockMailboxBAsync()
+    {
+        var sessionA = await _harness.AddMailboxAsync(1);
+        sessionA.Pages[string.Empty] = new MessageIdPage(["a1"], null);
+        sessionA.FailOnMetadataId = "a1";
+        var sessionB = await _harness.AddMailboxAsync(2);
+        sessionB.Pages[string.Empty] = new MessageIdPage(["b1", "b2"], null);
+
+        await _harness.Services.GetRequiredService<ScheduledRunner>().RunAllAsync(CancellationToken.None);
+
+        await using var db = _harness.Db.CreateDbContext();
+        var runs = await db.Runs.OrderBy(r => r.MailboxId).ToListAsync();
+        Assert.Equal([RunStatus.Failed, RunStatus.Completed], runs.Select(r => r.Status));
+        Assert.All(runs, r => Assert.Equal(RunTrigger.Scheduled, r.Trigger));
+        Assert.Equal(2, await db.Messages.CountAsync(m => m.MailboxId == 2));
+        Assert.NotNull((await db.Mailboxes.SingleAsync(m => m.Id == 1)).LastError);
+        Assert.Null((await db.Mailboxes.SingleAsync(m => m.Id == 2)).LastError);
+    }
+
+    [Fact]
+    public async Task RevokedToken_MarksMailboxTokenRevokedAsync()
+    {
+        var session = await _harness.AddMailboxAsync(1);
+        session.FailEverythingWith = new TokenRevokedException(new InvalidOperationException("invalid_grant"));
+
+        var run = await _harness.RunAsync(1, RunTrigger.Manual);
+
+        Assert.Equal(RunStatus.Failed, run.Status);
+        await using var db = _harness.Db.CreateDbContext();
+        var mailbox = await db.Mailboxes.SingleAsync();
+        Assert.Equal(MailboxStatus.TokenRevoked, mailbox.Status);
+        Assert.NotNull(mailbox.LastError);
+    }
+
+    [Fact]
+    public async Task FailedIncremental_DoesNotPersistAdvancedHistoryIdAsync()
+    {
+        var session = await MailboxAfterBackfillAsync(1);
+        session.Changes = new HistoryChanges(["ok", "ko"], 900);
+        session.FailOnMetadataId = "ko";
+
+        var run = await _harness.RunAsync(1, RunTrigger.Manual);
+
+        Assert.Equal(RunStatus.Failed, run.Status);
+        await using var db = _harness.Db.CreateDbContext();
+        Assert.Equal(500UL, (await db.Mailboxes.SingleAsync()).HistoryId);
+    }
+}

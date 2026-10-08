@@ -444,3 +444,15 @@ FodyWeavers.xsd
 
 # Appunti locali (non si committa)
 TODO/
+
+# Credenziali OAuth Google (client secret scaricato dalla console) — mai committare
+Gmail/
+client_secret*.json
+
+# Log Serilog (file giornalieri) e dati locali del servizio (allegati, key ring)
+logs/
+src/dr-mailroom-api/data/
+
+# Container: segreti e dati locali (volumi)
+.env
+/data/

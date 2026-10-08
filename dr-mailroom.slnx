@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/dr-mailroom-api/dr-mailroom-api.csproj" />
+    <Project Path="src/dr-mailroom-core/dr-mailroom-core.csproj" />
+  </Folder>
+  <Folder Name="/test/">
+    <Project Path="test/dr-mailroom-tests/dr-mailroom-tests.csproj" />
+  </Folder>
+</Solution>

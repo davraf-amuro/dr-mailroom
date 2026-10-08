@@ -1,0 +1,23 @@
+# Output di build e strumenti locali
+**/bin/
+**/obj/
+.git/
+.vs/
+.vscode/
+.idea/
+
+# Non servono all'immagine
+test/
+docs/
+briefs/
+.ai/
+.claude/
+.github/
+
+# Segreti e dati locali: mai dentro l'immagine
+.env
+**/appsettings.local.json
+Gmail/
+data/
+**/data/
+**/logs/

@@ -1,0 +1,89 @@
+### dr-mailroom API — richieste di esempio
+# La chiave API reale sta in appsettings.local.json (Authentication:ApiKey:ApiKeyValue): incollala qui solo in locale, non committarla.
+
+@baseUrl = http://localhost:5180
+@apiKey = INSERISCI_LA_CHIAVE_API
+
+### Stato del database (anonimo)
+GET {{baseUrl}}/api/v1/status
+
+### Caselle
+GET {{baseUrl}}/api/v1/mailboxes
+x-api-key: {{apiKey}}
+
+### URL di collegamento Gmail (aprilo nel browser)
+GET {{baseUrl}}/api/v1/mailboxes/connect
+x-api-key: {{apiKey}}
+
+### Eliminazione logica di una casella
+DELETE {{baseUrl}}/api/v1/mailboxes/1
+x-api-key: {{apiKey}}
+
+### Filtri
+GET {{baseUrl}}/api/v1/filters
+x-api-key: {{apiKey}}
+
+### Crea filtro
+POST {{baseUrl}}/api/v1/filters
+x-api-key: {{apiKey}}
+Content-Type: application/json
+
+{
+  "name": "Fatture fornitore",
+  "senderAddress": "fatture@fornitore.it",
+  "subjectMatchType": "Contains",
+  "subjectValue": "fattura",
+  "attachmentSubfolder": "fornitore",
+  "processes": ["AttachmentExtraction", "Alert"]
+}
+
+### Anteprima filtro sulle mail già indicizzate
+POST {{baseUrl}}/api/v1/filters/preview
+x-api-key: {{apiKey}}
+Content-Type: application/json
+
+{
+  "senderAddress": "fatture@fornitore.it",
+  "subjectMatchType": "Regex",
+  "subjectValue": "^fattura\\s+n\\.\\s*\\d+"
+}
+
+### Riapplica solo l'estrazione allegati
+POST {{baseUrl}}/api/v1/filters/1/reapply
+x-api-key: {{apiKey}}
+Content-Type: application/json
+
+{
+  "processes": ["AttachmentExtraction"]
+}
+
+### Giro manuale su tutte le caselle attive
+POST {{baseUrl}}/api/v1/runs
+x-api-key: {{apiKey}}
+Content-Type: application/json
+
+{}
+
+### Cronologia giri
+GET {{baseUrl}}/api/v1/runs
+x-api-key: {{apiKey}}
+
+### Statistiche per mittente
+GET {{baseUrl}}/api/v1/stats/senders
+x-api-key: {{apiKey}}
+
+### Statistiche mensili per mittente
+GET {{baseUrl}}/api/v1/stats/senders/monthly?senderAddress=fornitore
+x-api-key: {{apiKey}}
+
+### Allerte da notificare
+GET {{baseUrl}}/api/v1/alerts?consumed=false
+x-api-key: {{apiKey}}
+
+### Consuma un'allerta
+POST {{baseUrl}}/api/v1/alerts/1/consume
+x-api-key: {{apiKey}}
+
+### Allegati salvati di una mail
+GET {{baseUrl}}/api/v1/messages/1/attachments
+x-api-key: {{apiKey}}

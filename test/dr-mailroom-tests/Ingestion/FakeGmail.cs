@@ -1,0 +1,149 @@
+using dr_mailroom_core.Gmail;
+using dr_mailroom_core.Security;
+
+namespace dr_mailroom_tests.Ingestion;
+
+/// <summary>Casella Gmail finta e programmabile: pagine di backfill, history, metadati e guasti iniettabili.</summary>
+public sealed class FakeGmailSession : IGmailSession
+{
+    private readonly Lock _sync = new();
+    private int _metadataInFlight;
+
+    /// <summary>Massimo numero di letture di metadati contemporanee osservato.</summary>
+    public int MaxConcurrentMetadataReads { get; private set; }
+
+    /// <summary>historyId restituito da getProfile.</summary>
+    public ulong ProfileHistoryId { get; set; } = 1000;
+
+    /// <summary>Pagine del backfill/scansione indicizzate per pageToken ("" = prima pagina).</summary>
+    public Dictionary<string, MessageIdPage> Pages { get; } = [];
+
+    /// <summary>Risposta di history.list; null = history scaduta (404).</summary>
+    public HistoryChanges? Changes { get; set; } = new([], 1000);
+
+    /// <summary>pageToken per cui ListMessageIdsPageAsync deve fallire (simula un'interruzione).</summary>
+    public string? FailOnPageToken { get; set; }
+
+    /// <summary>Id per cui GetMetadataAsync deve fallire.</summary>
+    public string? FailOnMetadataId { get; set; }
+
+    /// <summary>Eccezione lanciata da ogni lettura di pagine/history/profilo (es. TokenRevokedException).</summary>
+    public Exception? FailEverythingWith { get; set; }
+
+    public List<string?> RequestedPageTokens { get; } = [];
+
+    public List<ulong> RequestedHistoryIds { get; } = [];
+
+    public Task<ulong> GetProfileHistoryIdAsync(CancellationToken cancellationToken) =>
+        FailEverythingWith is null ? Task.FromResult(ProfileHistoryId) : throw FailEverythingWith;
+
+    public Task<MessageIdPage> ListMessageIdsPageAsync(string? pageToken, CancellationToken cancellationToken)
+    {
+        RequestedPageTokens.Add(pageToken);
+        if (FailEverythingWith is not null)
+        {
+            throw FailEverythingWith;
+        }
+
+        if (pageToken is not null && pageToken == FailOnPageToken)
+        {
+            throw new HttpRequestException("interruzione simulata");
+        }
+
+        return Task.FromResult(Pages[pageToken ?? string.Empty]);
+    }
+
+    public Task<HistoryChanges> ListChangesSinceAsync(ulong historyId, CancellationToken cancellationToken)
+    {
+        RequestedHistoryIds.Add(historyId);
+        if (FailEverythingWith is not null)
+        {
+            throw FailEverythingWith;
+        }
+
+        return Changes is null
+            ? throw new HistoryExpiredException(historyId, new InvalidOperationException("404"))
+            : Task.FromResult(Changes);
+    }
+
+    public async Task<GmailMessageMetadata> GetMetadataAsync(string gmailMessageId, CancellationToken cancellationToken)
+    {
+        var inFlight = Interlocked.Increment(ref _metadataInFlight);
+        lock (_sync)
+        {
+            MaxConcurrentMetadataReads = Math.Max(MaxConcurrentMetadataReads, inFlight);
+        }
+
+        try
+        {
+            // Cedo il controllo: chiamate concorrenti, se ci fossero, si sovrapporrebbero qui
+            await Task.Yield();
+            if (gmailMessageId == FailOnMetadataId)
+            {
+                throw new HttpRequestException("metadati non disponibili");
+            }
+
+            return new GmailMessageMetadata(
+                gmailMessageId, "t-" + gmailMessageId, "fornitore@example.com", "Fornitore", "Oggetto " + gmailMessageId,
+                new DateTime(2026, 10, 1, 8, 0, 0, DateTimeKind.Utc), ["INBOX"], false);
+        }
+        finally
+        {
+            Interlocked.Decrement(ref _metadataInFlight);
+        }
+    }
+
+    /// <summary>Parti allegato restituite per ogni messaggio.</summary>
+    public List<GmailAttachmentPart> AttachmentParts { get; } = [];
+
+    /// <summary>PartId il cui download deve fallire (simula un crash a metà estrazione).</summary>
+    public string? FailOnDownloadPartId { get; set; }
+
+    /// <summary>PartId scaricati, nell'ordine.</summary>
+    public List<string> DownloadedPartIds { get; } = [];
+
+    public Task<IReadOnlyList<GmailAttachmentPart>> GetAttachmentPartsAsync(string gmailMessageId, CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<GmailAttachmentPart>>(AttachmentParts.ToList());
+
+    public Task<byte[]> DownloadAttachmentAsync(string gmailMessageId, GmailAttachmentPart part, CancellationToken cancellationToken)
+    {
+        if (part.PartId == FailOnDownloadPartId)
+        {
+            throw new HttpRequestException("download interrotto");
+        }
+
+        // I consumatori della coda scaricano in parallelo
+        lock (_sync)
+        {
+            DownloadedPartIds.Add(part.PartId);
+        }
+
+        return Task.FromResult(System.Text.Encoding.UTF8.GetBytes("contenuto " + part.PartId));
+    }
+
+    public void Dispose()
+    {
+    }
+}
+
+/// <summary>Reader che restituisce sempre la stessa sessione finta.</summary>
+public sealed class FakeGmailReader(FakeGmailSession session) : IGmailReader
+{
+    public IGmailSession OpenSession(string refreshToken) => session;
+}
+
+/// <summary>Reader con una sessione finta per refresh token: simula più caselle.</summary>
+public sealed class FakeMultiMailboxReader : IGmailReader
+{
+    public Dictionary<string, FakeGmailSession> Sessions { get; } = [];
+
+    public IGmailSession OpenSession(string refreshToken) => Sessions[refreshToken];
+}
+
+/// <summary>Protettore identità: i test non verificano la cifratura.</summary>
+public sealed class PlainTokenProtector : ITokenProtector
+{
+    public string Protect(string refreshToken) => refreshToken;
+
+    public string Unprotect(string encryptedRefreshToken) => encryptedRefreshToken;
+}
