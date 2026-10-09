@@ -153,7 +153,7 @@ Radice: `E:\Davide\Progetti\dr-mailroom-workspace\dr-mailroom-fe\` (nuovo repo, 
 - **Su divergenza**: STOP — scrivi `⚠️ Divergenza Fase 8: <cosa>` in plan.md, non procedere
 
 ### Fase 9: Guscio, router e banner di stato
-- **Stato**: [ ]
+- **Stato**: [x] — commit `ea074dc`. Navigazione da tastiera verificata con Playwright (skip link → marchio → 4 voci → Invio cambia vista e `document.title`); banner verificato con `/status` simulato (DB giù: strisce, `lastError`, "Riprova connessione") e con API irraggiungibile ("Servizio non raggiungibile"); 26 test verdi (5 nuovi sullo store `status`). Aggiunte rispetto al piano: `components/shared/PageHeading.vue` (sopratitolo + titolo, ripetuto in ogni vista), `utils/appInfo.ts` (`APP_NAME`), `meta.navLabel` per l'etichetta corta "Caselle" su mobile, viste Filtri/Esecuzioni/Statistiche provvisorie fino alle fasi 11–13, prima versione di `AppMark.vue` (rifinita nella 9.1). `HomeView.vue` rimossa
 - **Precondizione**: Fasi 6 e 8 `[x]`
 - **File**: `src/App.vue`, `src/components/shell/{AppSidebar,AppHeader}.vue`, `src/router/index.ts`, `src/router/routes/*.ts`, `src/composables/shared/useViewTransition.ts`, `src/services/statusService.ts`, `src/stores/status.ts`, `src/components/status/ServiceStatusBanner.vue`, `src/views/NotFoundView.vue`
 - **Operazione**: CREATE / EDIT
@@ -163,7 +163,7 @@ Radice: `E:\Davide\Progetti\dr-mailroom-workspace\dr-mailroom-fe\` (nuovo repo, 
 - **Su divergenza**: STOP — scrivi `⚠️ Divergenza Fase 9: <cosa>` in plan.md, non procedere
 
 ### Fase 9.1: Icona dell'applicazione
-- **Stato**: [ ]
+- **Stato**: [x] — commit `15e93e4`. Nessun `design/icon-source.png`: marchio disegnato da zero. `public/favicon.svg` semplificata (griglia 32, senza tagli stencil, variante dark via `prefers-color-scheme`), `favicon.ico` con voci PNG 16/32/48, PNG 180/192/512 da `design/app-icon.svg` (marchio completo, stessa geometria di `AppMark.vue`), `site.webmanifest`, `<title>`, `lang="it"`, `theme-color` light/dark. Aggiunte: `scripts/render-icons.mjs` + script `gen:icons` (rasterizza con Playwright). Anteprime 16/32/180 px pronte per il Checkpoint C1. Nota per la Fase 15: `vite build` copia `public/config.json` in `dist/` → escluderlo dall'immagine
 - **Precondizione**: Fase 9 `[x]`
 - **File**: `public/favicon.svg`, `public/favicon.ico` (sostituisce quello di Vue), `public/apple-touch-icon.png`, `public/icon-192.png`, `public/icon-512.png`, `public/site.webmanifest`, `index.html`, `src/components/shell/AppMark.vue`
 - **Operazione**: CREATE / EDIT
@@ -173,7 +173,7 @@ Radice: `E:\Davide\Progetti\dr-mailroom-workspace\dr-mailroom-fe\` (nuovo repo, 
 - **Su divergenza**: STOP — scrivi `⚠️ Divergenza Fase 9.1: <cosa>` in plan.md, non procedere
 
 ### Fase 10: Vista Caselle ("Hangar")
-- **Stato**: [ ]
+- **Stato**: [x] — commit `083dc8b`. 54 test verdi: ogni riga della tabella `reason` (7 casi), Pausa Active→Disabled, Riprendi Disabled→Active, 409 su entrambe, 409 su DELETE → "Attendi la fine del giro in corso", 204 su DELETE → riga `Deleted` conservata, badge con testo e icona per i 4 stati, azioni per stato (nessuna modifica su `Deleted`). Logica nello store `mailboxes` e nei composable `useMailboxesView`/`useOAuthReturn`; la view orchestra soltanto. Verifica visiva Playwright: dati reali, 5 stati simulati, tabella, conferma con strisce, ritorno `?oauth=error&reason=invalid_state` (query ripulita), mobile 390 px, light/dark. Aggiunte: `components/shared/{InlineNotice,BaseDialog}.vue`, `composables/shared/useNotice.ts`, variante `danger-ghost` di `BaseButton`, `whitespace-nowrap` in `BaseBadge`. **Osservazione backend (non modificato)**: `lastRunAtUtc` arriva senza designatore di fuso (`2026-10-08T19:45:17.18`), `/status` invece con `+00:00`; il FE legge come UTC le date senza fuso (`parseUtc`). Da valutare lato API (`DateTimeKind.Utc` nella proiezione). Nota: in "Token revocato" il badge usa `caution` (giallo) al posto dell'arancione della specifica, che non ha un token di design
 - **Precondizione**: Fase 9.1 `[x]`
 - **File**: `src/views/MailboxesView.vue`, `src/components/mailboxes/*`, `src/composables/mailboxes/*`, `src/services/mailboxesService.ts`, `src/stores/mailboxes.ts`, `src/utils/formatSerial.ts`, `src/utils/formatDate.ts`
 - **Operazione**: CREATE

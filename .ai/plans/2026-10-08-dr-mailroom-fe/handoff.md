@@ -6,9 +6,9 @@ Per chi riprende il lavoro sul frontend in una nuova sessione aperta dal workspa
 
 | Cosa | Stato |
 |---|---|
-| Piano | [plan.md](plan.md) v1.2, **`Stato: IN CORSO`**, approvato dall'utente. Fasi **1–8 `[x]`**. **Prossima: Fase 9** (guscio, router, banner), poi 9.1 (icona), 10 (Caselle), Checkpoint C1 |
+| Piano | [plan.md](plan.md) v1.2, **`Stato: IN CORSO`**. Fasi **1–10 `[x]`** (2026-10-09). **In attesa del Checkpoint C1** (OK dell'utente su vista Caselle, icona, font Saira), poi Fase 11 |
 | Design | [design.md](design.md) v1.1, con i contrasti misurati. Lessico: etichetta della specifica + metafora come sopratitolo ("Esegui ora" / "Sortita") |
-| Repo FE | `E:\Davide\Progetti\dr-mailroom-workspace\dr-mailroom-fe`, remote pubblico https://github.com/davraf-amuro/dr-mailroom-fe, **nessun push ancora fatto**. Commit: `e799170` scaffold · `34d8e99` linee guida · `e875f9f` dipendenze · `d5498a0` client API · `dc6b13e` token e tema · `913c47a` componenti shared |
+| Repo FE | `E:\Davide\Progetti\dr-mailroom-workspace\dr-mailroom-fe`, remote pubblico https://github.com/davraf-amuro/dr-mailroom-fe, **nessun push ancora fatto**. Commit: `e799170` scaffold · `34d8e99` linee guida · `e875f9f` dipendenze · `d5498a0` client API · `dc6b13e` token e tema · `913c47a` componenti shared · `ea074dc` guscio · `15e93e4` icona · `083dc8b` vista Caselle |
 | Icona | Fase 9.1. L'utente non vuole icone di default. Prompt per ChatGPT in [icon-prompt.md](icon-prompt.md): se l'utente fornisce `dr-mailroom-fe/design/icon-source.png`, ridisegnarla in SVG; altrimenti disegnarla da zero |
 | Backend | Avviato in background in una sessione precedente con `dotnet run --project src/dr-mailroom-api --launch-profile http` (il cron legge le caselle reali). Se non risponde su `http://localhost:5180/api/v1/status`, chiedere all'utente prima di riavviarlo |
 | Issue aperte | [davraf-amuro/dr-fe#1](https://github.com/davraf-amuro/dr-fe/issues/1): `-Package dr-fe` non installa il core |
@@ -20,7 +20,8 @@ Per chi riprende il lavoro sul frontend in una nuova sessione aperta dal workspa
 - `src/assets/styles/{tokens,main}.css`: token come utility Tailwind (`bg-surface`, `text-ink-muted`, `border-control-border`, `text-on-federal`…), classi `.stencil`, `.tabular`, `.font-expanded`, `.visually-hidden`; tema scuro con `[data-theme='dark']`
 - `src/composables/shared/useTheme.ts`, `src/stores/ui.ts`
 - `src/components/shared/`: BaseButton, BasePanel, BaseBadge, ConfirmDialog (Reka AlertDialog, `v-model:open`, emette `confirm`, si chiude dal chiamante), SortableTable (generica, `v-model:sort`, slot `cell-<key>`), ProgressMeter, LiveRegion, EmptyState, FieldError, HazardStripe, SerialTag
-- `src/views/HomeView.vue` e `src/router/index.ts`: **provvisori**, da sostituire nella Fase 9
+- `src/views/{Filters,Runs,Stats}View.vue`: **provvisori**, riempiti nelle fasi 11–13
+- Le date `…Utc` senza fuso si leggono con `parseUtc` (`src/utils/formatDate.ts`)
 - `public/config.json`: locale, ignorato da git, con la chiave del backend (`Authentication:ApiKey:ApiKeyValue` in `dr-mailroom/src/dr-mailroom-api/appsettings.local.json`)
 
 ## Comandi utili (dalla radice di dr-mailroom-fe)
@@ -46,4 +47,4 @@ Per chi riprende il lavoro sul frontend in una nuova sessione aperta dal workspa
 - Organizzazione del codice: `dr-mailroom-fe/.github/instructions/frontend-organization.instructions.md`
 - Contratto API: `http://localhost:5180/openapi/v1.json`, documentazione interattiva su `/scalar/v1`
 
-*Handoff v1.1 — 2026-10-08 — claude-opus-5-5*
+*Handoff v1.2 — 2026-10-09 — claude-opus-5-5*
