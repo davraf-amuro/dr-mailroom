@@ -1,4 +1,6 @@
 using System.Collections.Concurrent;
+using System.Globalization;
+using System.Text;
 using System.Text.RegularExpressions;
 using dr_mailroom_core.Configuration;
 using dr_mailroom_core.Enums;
@@ -56,12 +58,47 @@ public class FilterMatcher(IOptions<FilteringOptions> options, ILogger<FilterMat
 
         return filter.SubjectMatchType switch
         {
-            SubjectMatchType.StartsWith => message.Subject.StartsWith(filter.SubjectValue, StringComparison.OrdinalIgnoreCase),
+            SubjectMatchType.StartsWith => StartsWithIgnoringDecoration(message.Subject, filter.SubjectValue),
             SubjectMatchType.Contains => message.Subject.Contains(filter.SubjectValue, StringComparison.OrdinalIgnoreCase),
             SubjectMatchType.Regex => RegexMatches(filter, message),
             _ => false,
         };
     }
+
+    /// <summary>
+    /// StartsWith case-insensitive che tollera un prefisso decorativo nell'oggetto (es. "📄Riepilogo …"):
+    /// prima il confronto diretto, poi quello dopo emoji, simboli e spazi iniziali.
+    /// </summary>
+    private static bool StartsWithIgnoringDecoration(string subject, string value) =>
+        subject.StartsWith(value, StringComparison.OrdinalIgnoreCase)
+        || subject[LeadingDecorationLength(subject)..].StartsWith(value, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>Lunghezza in char UTF-16 del prefisso decorativo dell'oggetto.</summary>
+    private static int LeadingDecorationLength(string text)
+    {
+        var length = 0;
+        foreach (var rune in text.EnumerateRunes())
+        {
+            if (!IsDecoration(rune))
+            {
+                break;
+            }
+
+            length += rune.Utf16SequenceLength;
+        }
+
+        return length;
+    }
+
+    /// <summary>Emoji e simboli, segni combinanti (es. selettore di variante U+FE0F), caratteri di formato (es. ZWJ) e spazi; la punteggiatura no.</summary>
+    private static bool IsDecoration(Rune rune) =>
+        Rune.IsWhiteSpace(rune)
+        || Rune.GetUnicodeCategory(rune) is UnicodeCategory.OtherSymbol
+            or UnicodeCategory.ModifierSymbol
+            or UnicodeCategory.NonSpacingMark
+            or UnicodeCategory.EnclosingMark
+            or UnicodeCategory.Format
+            or UnicodeCategory.PrivateUse;
 
     /// <summary>Regex con timeout: timeout o pattern non valido → nessun match e warning, mai eccezione.</summary>
     private bool RegexMatches(Filter filter, Message message)

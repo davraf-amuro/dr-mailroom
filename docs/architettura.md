@@ -57,7 +57,7 @@ flowchart LR
 | D5 | Topologia | Host unico `dr-mailroom-api` + libreria `dr-mailroom-core` + `dr-mailroom-tests`: un solo container. Uno split futuro in API + Worker tocca solo l'host |
 | D6 | Spam/Cestino | Esclusi dalla lettura (`includeSpamTrash=false`), configurabile |
 | D7 | Match mittente | Uguaglianza case-insensitive sull'indirizzo |
-| D8 | Match oggetto | Un solo tipo per filtro: `StartsWith`, `Contains` o `Regex`. I primi due case-insensitive. `Regex` con `IgnoreCase \| CultureInvariant` e timeout configurabile: timeout → nessun match + warning nel log |
+| D8 | Match oggetto | Un solo tipo per filtro: `StartsWith`, `Contains` o `Regex`. I primi due case-insensitive. `StartsWith` ignora emoji, simboli e spazi in testa all'oggetto (es. "📄Riepilogo …" inizia con "Riepilogo"), non la punteggiatura. `Regex` con `IgnoreCase \| CultureInvariant` e timeout configurabile: timeout → nessun match + warning nel log |
 | D9 | Statistiche | Contano **tutte** le mail lette, non solo quelle filtrate |
 | D10 | Frontend | Niente Blazor né Razor. Il backend espone solo REST JSON. Il frontend `dr-mailroom-fe` è una SPA Vue 3 + Vite + TypeScript separata, servita da nginx. Qui: solo specifica |
 | D11 | Giro manuale | `POST /api/v1/runs` avvia **subito** il giro. Casella con un giro già attivo → **409**. Nessuna coda nel DB |
@@ -347,4 +347,4 @@ erDiagram
 | `HasAttachments` dedotto dal tipo MIME `multipart/mixed` | con `format=metadata` Gmail non elenca le parti: alcune mail con allegati inline possono risultare senza | nessuno necessario: l'estrazione legge sempre le parti reali (`format=full`) |
 | Riapplica e giro manuale verificano la casella e poi la affidano allo scheduler | in una finestra brevissima un altro giro può prendere il lock prima | il giro parte e chiude come `Skipped`, senza effetti sui dati |
 
-*Revisione v1.7 — 2026-10-10 21:12 — claude-opus-5-5*
+*Revisione v1.8 — 2026-10-10 21:40 — claude-opus-5-5*
