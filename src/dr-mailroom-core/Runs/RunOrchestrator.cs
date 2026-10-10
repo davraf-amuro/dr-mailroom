@@ -107,19 +107,19 @@ public class RunOrchestrator(
 
             await runProvider.FinishRunAsync(
                 runId, RunStatus.Completed, outcome.MessagesRead, outcome.Processed, outcome.Errors, outcome.ErrorSummary, cancellationToken);
-            await mailboxProvider.RecordRunOutcomeAsync(mailboxId, null, null, cancellationToken);
+            await mailboxProvider.RecordRunOutcomeAsync(mailboxId, runId, null, null, cancellationToken);
         }
         catch (TokenRevokedException ex)
         {
             logger.LogError(ex, "Giro {RunId}: refresh token della casella {MailboxId} revocato", runId, mailboxId);
             await runProvider.FinishRunAsync(runId, RunStatus.Failed, null, 0, 1, ex.Message, cancellationToken);
-            await mailboxProvider.RecordRunOutcomeAsync(mailboxId, ex.Message, MailboxStatus.TokenRevoked, cancellationToken);
+            await mailboxProvider.RecordRunOutcomeAsync(mailboxId, runId, ex.Message, MailboxStatus.TokenRevoked, cancellationToken);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             logger.LogError(ex, "Giro {RunId} sulla casella {MailboxId} fallito", runId, mailboxId);
             await runProvider.FinishRunAsync(runId, RunStatus.Failed, null, 0, 1, ex.Message, cancellationToken);
-            await mailboxProvider.RecordRunOutcomeAsync(mailboxId, ex.Message, null, cancellationToken);
+            await mailboxProvider.RecordRunOutcomeAsync(mailboxId, runId, ex.Message, null, cancellationToken);
         }
     }
 

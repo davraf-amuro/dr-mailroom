@@ -86,6 +86,7 @@ public class MailboxIngestionServiceTests
         Assert.True(mailbox.BackfillCompleted);
         Assert.Null(mailbox.BackfillPageToken);
         Assert.Equal(500UL, mailbox.HistoryId);
+        Assert.Equal(1200, mailbox.MessagesTotal);
     }
 
     [Fact]
@@ -104,13 +105,16 @@ public class MailboxIngestionServiceTests
 
         var healthy = TwoPageMailbox();
         healthy.ProfileHistoryId = 999;
+        healthy.ProfileMessagesTotal = 1300;
         await IngestAsync(healthy);
 
         Assert.Equal(["p2"], healthy.RequestedPageTokens);
         Assert.Equal(["a", "b", "c"], await LoadGmailIdsAsync());
         var completed = await LoadMailboxAsync();
         Assert.True(completed.BackfillCompleted);
+        // Alla ripresa l'historyId base resta quello dell'avvio, il totale messaggi si aggiorna
         Assert.Equal(500UL, completed.HistoryId);
+        Assert.Equal(1300, completed.MessagesTotal);
     }
 
     [Fact]
@@ -128,6 +132,38 @@ public class MailboxIngestionServiceTests
         Assert.Empty(session.RequestedPageTokens);
         Assert.Single(result.InsertedMessageIds);
         Assert.Equal(600UL, (await LoadMailboxAsync()).HistoryId);
+    }
+
+    [Fact]
+    public async Task UndatedMessages_AreReReadAndRedated_UnreadableOnesStayAsync()
+    {
+        await SeedAsync(backfillCompleted: true, historyId: 500);
+        await using (var db = NewContext())
+        {
+            foreach (var gmailId in new[] { "old1", "old2", "ok" })
+            {
+                db.Messages.Add(new Message
+                {
+                    MailboxId = MailboxId,
+                    GmailMessageId = gmailId,
+                    ThreadId = "t",
+                    SenderAddress = "spam@example.com",
+                    ReceivedAtUtc = gmailId == "ok" ? new DateTime(2024, 5, 1, 0, 0, 0, DateTimeKind.Utc) : DateTime.UnixEpoch,
+                });
+            }
+
+            await db.SaveChangesAsync();
+        }
+
+        var session = new FakeGmailSession { Changes = new HistoryChanges([], 510), FailOnMetadataId = "old2" };
+
+        await IngestAsync(session);
+
+        await using var check = NewContext();
+        var dates = await check.Messages.ToDictionaryAsync(m => m.GmailMessageId, m => m.ReceivedAtUtc);
+        Assert.Equal(new DateTime(2026, 10, 1, 8, 0, 0, DateTimeKind.Utc), dates["old1"]);
+        Assert.Equal(DateTime.UnixEpoch, dates["old2"]);
+        Assert.Equal(new DateTime(2024, 5, 1, 0, 0, 0, DateTimeKind.Utc), dates["ok"]);
     }
 
     [Fact]

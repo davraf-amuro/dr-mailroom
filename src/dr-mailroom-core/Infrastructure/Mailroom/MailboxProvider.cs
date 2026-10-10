@@ -48,6 +48,7 @@ public class MailboxProvider(
     /// <summary>Registra l'esito dell'ultimo giro sulla casella con un contesto dedicato; newStatus null = invariato.</summary>
     public async Task RecordRunOutcomeAsync(
         int mailboxId,
+        long runId,
         string? lastError,
         MailboxStatus? newStatus,
         CancellationToken cancellationToken)
@@ -58,6 +59,7 @@ public class MailboxProvider(
         var mailbox = await db.Mailboxes.AsTracking().FirstAsync(m => m.Id == mailboxId, cancellationToken);
         mailbox.LastRunAtUtc = DateTime.UtcNow;
         mailbox.LastError = TextLimits.Truncate(lastError, ColumnLengths.ErrorText);
+        mailbox.LastErrorRunId = lastError is null ? null : runId;
         mailbox.Status = newStatus ?? mailbox.Status;
 
         // Scrivo su DB l'esito sulla casella

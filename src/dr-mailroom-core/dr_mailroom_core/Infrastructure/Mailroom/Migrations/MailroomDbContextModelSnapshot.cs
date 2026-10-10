@@ -248,9 +248,17 @@ namespace dr_mailroom_core.Infrastructure.Mailroom.Migrations
                         .HasColumnType("nvarchar(2000)")
                         .HasColumnName("LastError");
 
+                    b.Property<long?>("LastErrorRunId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("LastErrorRunId");
+
                     b.Property<DateTime?>("LastRunAtUtc")
                         .HasColumnType("datetime2")
                         .HasColumnName("LastRunAtUtc");
+
+                    b.Property<int?>("MessagesTotal")
+                        .HasColumnType("int")
+                        .HasColumnName("MessagesTotal");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -330,6 +338,10 @@ namespace dr_mailroom_core.Infrastructure.Mailroom.Migrations
 
                     b.HasIndex("MailboxId", "GmailMessageId")
                         .IsUnique();
+
+                    b.HasIndex("MailboxId", "SenderAddress", "ReceivedAtUtc");
+
+                    SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("MailboxId", "SenderAddress", "ReceivedAtUtc"), new[] { "Subject" });
 
                     b.HasIndex("MailboxId", "SenderAddress", "YearMonth");
 

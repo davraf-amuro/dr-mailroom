@@ -80,7 +80,7 @@ flowchart LR
 | T2 | Cartelle | In Gmail le "cartelle" sono **label**. Si legge per messaggio (`messageId`), non per cartella: nessun doppio conteggio. Le label si salvano come attributo del messaggio |
 | T3 | Checkpoint | Backfill: `pageToken` salvato su `Mailbox.BackfillPageToken` dopo ogni pagina. L'`historyId` del profilo si cattura **all'inizio** del backfill e fa da base all'incrementale. Incrementale: `users.history.list` da `HistoryId`; HTTP 404 (history scaduta) → scansione completa idempotente |
 | T4 | Idempotenza | UNIQUE `(MailboxId, GmailMessageId)`. Insert idempotenti: errori 2601/2627 = già presente. Mai chiave sul `Message-ID` dell'header |
-| T5 | Statistiche | Viste SQL `vw_SenderStats` e `vw_SenderMonthlyStats`, colonna calcolata persistita `YearMonth`, indice coprente. `ReceivedAtUtc` viene da `internalDate` di Gmail |
+| T5 | Statistiche | Viste SQL `vw_SenderStats` e `vw_SenderMonthlyStats`, colonna calcolata persistita `YearMonth`, indice coprente. Panoramica paginata per indirizzo (`/stats/senders/overview`) e conteggi per anno (`/stats/years`) letti da `Message`, con l'indice `(MailboxId, SenderAddress, ReceivedAtUtc) INCLUDE (Subject)`. `ReceivedAtUtc` viene da `internalDate` di Gmail; se manca, dall'header `Date` o dall'ora di lettura |
 | T6 | Segreti | Refresh token cifrati con ASP.NET Core Data Protection. Key ring su percorso configurabile (volume), fuori dal DB. Client secret da configurazione locale o ambiente. Token mai nei log applicativi |
 | T7 | Scheduler | Quartz.NET con cron da configurazione. Job schedulato con `[DisallowConcurrentExecution]`. Giro manuale e riapplica con `TriggerJob` immediato su un job separato |
 | T8 | Lock | Un giro alla volta per casella con `sp_getapplock`: risorsa `mailbox:<id>`, timeout 0, owner `Session` su una connessione dedicata aperta per tutto il giro. Casella occupata: il giro schedulato la salta (log), la richiesta manuale riceve 409 |
@@ -212,11 +212,11 @@ Regole che valgono in ogni giro:
 
 | Esito | Stato del `Run` | Effetto sulla casella |
 |---|---|---|
-| Lavoro finito, anche con processi falliti su qualche messaggio | `Completed`, con `MessagesRead`, `MessagesProcessed`, `ErrorCount` | esito pulito, `LastError` azzerato |
+| Lavoro finito, anche con processi falliti su qualche messaggio | `Completed`, con `MessagesRead`, `MessagesProcessed`, `ErrorCount` | esito pulito, `LastError` e `LastErrorRunId` azzerati |
 | Casella `Deleted`, casella `Disabled` (in pausa) oppure lock già preso | `Skipped`, con il motivo in `ErrorSummary` | nessuno |
 | Annullato via API o dall'arresto del servizio | `Cancelled`, con il motivo in `ErrorSummary` | nessuno: il backfill riprende dalla pagina salvata, l'incrementale dal `HistoryId` salvato |
 | Refresh token revocato (`invalid_grant`) | `Failed` | `Status = TokenRevoked`: la casella esce dai giri finché non si ricollega |
-| Qualsiasi altro errore | `Failed`, con il messaggio in `ErrorSummary` | `LastError` valorizzato; il cron riprova al prossimo scatto |
+| Qualsiasi altro errore | `Failed`, con il messaggio in `ErrorSummary` | `LastError` valorizzato, `LastErrorRunId` = giro; il cron riprova al prossimo scatto |
 
 In ogni caso il lock si rilascia alla fine del giro. Se il rilascio fallisce, lo libera comunque SQL Server quando chiude la connessione dedicata.
 
@@ -292,7 +292,7 @@ sequenceDiagram
 
 | Tabella | Colonne chiave | Vincoli e indici |
 |---------|----------------|------------------|
-| `Mailbox` | EmailAddress, EncryptedRefreshToken, HistoryId (`decimal(20,0)`), BackfillPageToken, BackfillCompleted, Status (Active / TokenRevoked / Disabled = in pausa / Deleted), LastRunAtUtc, LastError | UNIQUE(EmailAddress) |
+| `Mailbox` | EmailAddress, EncryptedRefreshToken, HistoryId (`decimal(20,0)`), BackfillPageToken, BackfillCompleted, MessagesTotal (totale Gmail da `getProfile`, letto all'avvio e alla ripresa del backfill: denominatore dell'avanzamento), Status (Active / TokenRevoked / Disabled = in pausa / Deleted), LastRunAtUtc, LastError, LastErrorRunId (giro che ha registrato `LastError`) | UNIQUE(EmailAddress) |
 | `Message` | MailboxId, GmailMessageId, ThreadId, SenderAddress (minuscolo), SenderName, Subject, ReceivedAtUtc, `YearMonth` (`int` calcolato persistito: `YEAR*100+MONTH`, es. 202610), Labels, HasAttachments | UNIQUE(MailboxId, GmailMessageId); IX(MailboxId, SenderAddress, YearMonth) |
 | `Filter` | MailboxId (null = tutte), Name, SenderAddress, SubjectMatchType (null / StartsWith / Contains / Regex), SubjectValue, AttachmentSubfolder, IsEnabled | CHECK: SubjectMatchType e SubjectValue entrambi valorizzati o entrambi null; IX(SenderAddress) |
 | `FilterProcess` | FilterId, ProcessType (AttachmentExtraction / Alert) | PK(FilterId, ProcessType) |
@@ -347,4 +347,4 @@ erDiagram
 | `HasAttachments` dedotto dal tipo MIME `multipart/mixed` | con `format=metadata` Gmail non elenca le parti: alcune mail con allegati inline possono risultare senza | nessuno necessario: l'estrazione legge sempre le parti reali (`format=full`) |
 | Riapplica e giro manuale verificano la casella e poi la affidano allo scheduler | in una finestra brevissima un altro giro può prendere il lock prima | il giro parte e chiude come `Skipped`, senza effetti sui dati |
 
-*Revisione v1.5 — 2026-10-08 22:21 — claude-opus-5-5*
+*Revisione v1.7 — 2026-10-10 21:12 — claude-opus-5-5*

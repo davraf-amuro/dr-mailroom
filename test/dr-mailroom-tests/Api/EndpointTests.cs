@@ -12,6 +12,7 @@ public sealed class EndpointTests : IClassFixture<MailroomApiFactory>
 {
     private const string FiltersUrl = "/api/v1/filters";
     private const string RunsUrl = "/api/v1/runs";
+    private const string StatsUrl = "/api/v1/stats";
 
     private readonly MailroomApiFactory _factory;
     private readonly HttpClient _client;
@@ -334,5 +335,55 @@ public sealed class EndpointTests : IClassFixture<MailroomApiFactory>
         var mailbox = await db.Mailboxes.SingleAsync(m => m.EmailAddress == "nuova@example.com");
         Assert.Equal(MailboxStatus.Active, mailbox.Status);
         Assert.NotEqual("refresh-xyz", mailbox.EncryptedRefreshToken);
+    }
+
+    [Fact]
+    public async Task SenderOverview_ReturnsPagedRowsWithOldestAndNewestMailAsync()
+    {
+        var mailboxId = await SeedMailboxAsync();
+        await using (var db = _factory.NewContext())
+        {
+            db.Messages.AddRange(
+                new Message { MailboxId = mailboxId, GmailMessageId = "ov-1", ThreadId = "t", SenderAddress = "a@x.it", Subject = "vecchia", ReceivedAtUtc = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+                new Message { MailboxId = mailboxId, GmailMessageId = "ov-2", ThreadId = "t", SenderAddress = "a@x.it", Subject = "recente", ReceivedAtUtc = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+                new Message { MailboxId = mailboxId, GmailMessageId = "ov-3", ThreadId = "t", SenderAddress = "b@x.it", Subject = "b", ReceivedAtUtc = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc) });
+            await db.SaveChangesAsync();
+        }
+
+        var page = await _client.GetFromJsonAsync<JsonElement>($"{StatsUrl}/senders/overview?mailboxId={mailboxId}&pageSize=1");
+        var years = await _client.GetFromJsonAsync<JsonElement>($"{StatsUrl}/years?mailboxId={mailboxId}&senderAddress=A@X.IT");
+
+        Assert.Equal(2, page.GetProperty("totalCount").GetInt32());
+        Assert.Equal(1, page.GetProperty("pageSize").GetInt32());
+        var row = Assert.Single(page.GetProperty("items").EnumerateArray());
+        Assert.Equal("a@x.it", row.GetProperty("senderAddress").GetString());
+        Assert.Equal("vecchia", row.GetProperty("firstSubject").GetString());
+        Assert.Equal("recente", row.GetProperty("lastSubject").GetString());
+        Assert.Equal([2026, 2024], years.EnumerateArray().Select(y => y.GetProperty("year").GetInt32()));
+    }
+
+    [Theory]
+    [InlineData("", "mailboxId")]
+    [InlineData("mailboxId=0", "mailboxId")]
+    [InlineData("mailboxId=1&pageSize=101", "pageSize")]
+    [InlineData("mailboxId=1&pageSize=0", "pageSize")]
+    [InlineData("mailboxId=1&page=0", "page")]
+    [InlineData("mailboxId=1&year=1900", "year")]
+    public async Task SenderOverview_InvalidQuery_Returns400Async(string query, string expectedErrorKey)
+    {
+        var response = await _client.GetAsync($"{StatsUrl}/senders/overview?{query}");
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains(expectedErrorKey, await ErrorKeysAsync(response));
+    }
+
+    [Theory]
+    [InlineData("senders/overview")]
+    [InlineData("years")]
+    public async Task Stats_UnknownMailbox_Returns404Async(string path)
+    {
+        var response = await _client.GetAsync($"{StatsUrl}/{path}?mailboxId=999999");
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 }

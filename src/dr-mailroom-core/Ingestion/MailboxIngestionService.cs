@@ -19,6 +19,9 @@ public class MailboxIngestionService(
     MessageProvider messageProvider,
     ILogger<MailboxIngestionService> logger)
 {
+    /// <summary>Massimo di messaggi con data 1970-01-01 riletti per giro: 5 unità di quota ciascuno.</summary>
+    public const int MaxUndatedRepairsPerRun = 50;
+
     /// <summary>Esegue l'ingestione della casella per il giro indicato; newMessages null = nessun messaggio da elaborare.</summary>
     public async Task<IngestionResult> IngestAsync(
         int mailboxId, long runId, IGmailSession session, ChannelWriter<long>? newMessages, CancellationToken cancellationToken)
@@ -29,25 +32,76 @@ public class MailboxIngestionService(
         var run = await runProvider.GetRunForUpdateAsync(runId, cancellationToken)
             ?? throw new InvalidOperationException($"Giro {runId} inesistente");
 
+        await RepairUndatedMessagesAsync(session, mailbox.Id, cancellationToken);
+
         return mailbox.BackfillCompleted
             ? await IngestIncrementalAsync(session, mailbox, run, newMessages, cancellationToken)
             : await BackfillAsync(session, mailbox, run, cancellationToken);
     }
 
+    /// <summary>
+    /// Rilegge da Gmail i messaggi salvati con data 1970-01-01 e ne corregge la data (al massimo MaxUndatedRepairsPerRun per giro).
+    /// Un messaggio non più leggibile resta com'è e verrà ritentato al giro successivo.
+    /// </summary>
+    private async Task RepairUndatedMessagesAsync(IGmailSession session, int mailboxId, CancellationToken cancellationToken)
+    {
+        var undated = await messageProvider.GetUndatedMessagesAsync(mailboxId, MaxUndatedRepairsPerRun, cancellationToken);
+        if (undated.Count == 0)
+        {
+            return;
+        }
+
+        logger.LogInformation("Casella {MailboxId}: {Count} messaggi con data 1970-01-01 da rileggere", mailboxId, undated.Count);
+        var repaired = 0;
+        foreach (var message in undated)
+        {
+            GmailMessageMetadata metadata;
+            try
+            {
+                // Chiamo Gmail: metadati del messaggio senza data
+                metadata = await session.GetMetadataAsync(message.GmailMessageId, cancellationToken);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException and not TokenRevokedException)
+            {
+                logger.LogWarning(ex, "Casella {MailboxId}: messaggio {GmailMessageId} non riletto, data invariata", mailboxId, message.GmailMessageId);
+                continue;
+            }
+
+            logger.LogInformation(
+                "Casella {MailboxId}: data del messaggio {GmailMessageId} corretta in {ReceivedAtUtc} (fonte {Source}, internalDate {InternalDate})",
+                mailboxId, message.GmailMessageId, metadata.ReceivedAtUtc, metadata.ReceivedDateSource, metadata.RawInternalDate);
+            message.ReceivedAtUtc = metadata.ReceivedAtUtc;
+            repaired++;
+        }
+
+        // Scrivo su DB le date corrette (YearMonth è una colonna calcolata persistita: si aggiorna da sola)
+        await messageProvider.SaveChangesAsync(cancellationToken);
+        logger.LogInformation("Casella {MailboxId}: {Repaired} date corrette su {Count}", mailboxId, repaired, undated.Count);
+    }
+
     /// <summary>Backfill: indicizza lo storico pagina per pagina, salvando il pageToken dopo ogni pagina (ripresa).</summary>
     private async Task<IngestionResult> BackfillAsync(IGmailSession session, Mailbox mailbox, Run run, CancellationToken cancellationToken)
     {
+        // Chiamo Gmail: profilo letto PRIMA della prima pagina, così l'incrementale copre le mail arrivate durante il backfill;
+        // il totale messaggi si aggiorna anche alla ripresa (denominatore dell'avanzamento)
+        var profile = await session.GetProfileAsync(cancellationToken);
+        mailbox.MessagesTotal = profile.MessagesTotal;
+
         if (mailbox.HistoryId is null)
         {
-            // Chiamo Gmail: historyId catturato PRIMA della prima pagina, così l'incrementale copre le mail arrivate durante il backfill
-            mailbox.HistoryId = await session.GetProfileHistoryIdAsync(cancellationToken);
-            await mailboxProvider.SaveChangesAsync(cancellationToken);
-            logger.LogInformation("Casella {MailboxId}: inizio backfill, historyId base {HistoryId}", mailbox.Id, mailbox.HistoryId);
+            mailbox.HistoryId = profile.HistoryId;
+            logger.LogInformation(
+                "Casella {MailboxId}: inizio backfill, historyId base {HistoryId}, {MessagesTotal} messaggi in Gmail",
+                mailbox.Id, mailbox.HistoryId, mailbox.MessagesTotal);
         }
         else
         {
-            logger.LogInformation("Casella {MailboxId}: ripresa backfill dalla pagina salvata", mailbox.Id);
+            logger.LogInformation(
+                "Casella {MailboxId}: ripresa backfill dalla pagina salvata, {MessagesTotal} messaggi in Gmail", mailbox.Id, mailbox.MessagesTotal);
         }
+
+        // Scrivo su DB historyId base e totale messaggi
+        await mailboxProvider.SaveChangesAsync(cancellationToken);
 
         var inserted = new List<long>();
         var read = 0;
@@ -114,7 +168,7 @@ public class MailboxIngestionService(
         IGmailSession session, Mailbox mailbox, Run run, ChannelWriter<long>? newMessages, CancellationToken cancellationToken)
     {
         // Chiamo Gmail: nuovo historyId catturato prima della scansione
-        var newHistoryId = await session.GetProfileHistoryIdAsync(cancellationToken);
+        var newHistoryId = (await session.GetProfileAsync(cancellationToken)).HistoryId;
 
         var inserted = new List<long>();
         var read = 0;

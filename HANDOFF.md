@@ -1,149 +1,145 @@
 # Progetto
 
-dr-mailroom: backend .NET 10 in `E:\Davide\Progetti\dr-mailroom-workspace\dr-mailroom` (branch `main`, remote `davraf-amuro/dr-mailroom`) e frontend Vue 3 in `E:\Davide\Progetti\dr-mailroom-workspace\dr-mailroom-fe` (branch `main`, remote pubblico `davraf-amuro/dr-mailroom-fe`). Workspace VS Code: `E:\Davide\Progetti\dr-mailroom-workspace\dr-mailroom.code-workspace`.
+dr-mailroom: backend .NET 10 (Minimal API + EF Core su SQL Server) in `E:\Davide\Progetti\dr-mailroom-workspace\dr-mailroom` (branch `main`) e frontend Vue 3 in `E:\Davide\Progetti\dr-mailroom-workspace\dr-mailroom-fe` (branch `main`). Workspace VS Code: `E:\Davide\Progetti\dr-mailroom-workspace\dr-mailroom.code-workspace`.
 
 ---
 
 # Obiettivo
 
-Realizzare `dr-mailroom-fe`, la SPA Vue 3 che implementa `docs/frontend-specifiche.md` (v1.1) con la direzione visiva "Hangar Federale".
+Eseguire il brief `briefs/20261009-01.md` ("completamento del FE"): CRUD filtri, lista esecuzioni, statistiche per casella con, per mittente (indirizzo email), numero di mail e data+oggetto della più recente e della più vecchia.
 
-- Piano: `.ai/plans/2026-10-08-dr-mailroom-fe/plan.md` (v1.2, `Stato: IN CORSO`, approvato dall'utente)
-- Design: `.ai/plans/2026-10-08-dr-mailroom-fe/design.md` (v1.1)
-- Nota di ripresa: `.ai/plans/2026-10-08-dr-mailroom-fe/handoff.md` (v1.1)
+- Piano coordinatore: `.ai/plans/2026-10-09-completamento-fe/plan.md` — `Stato: IN CORSO`, approvato dall'utente
+- Piano FE: `.ai/plans/2026-10-08-dr-mailroom-fe/plan.md` — revisione v1.3 (Fasi 11 e 13 aggiornate dal brief)
+- Piano `2026-10-09-scheda-avanzamento-backfill` — `COMPLETATO`
 
 ---
 
 # Stato corrente
 
-- Fasi 1–8 del piano `[x]`; Fasi 9, 9.1, 10, Checkpoint C1, 11–18 `[ ]`.
-- Repo FE: 6 commit locali, ultimo `913c47a`. **Nessun push** su `origin`.
-- Repo backend: ultimo commit `084ea00` (solo file del piano). Nessun push di questo commit verificato in sessione.
-- Backend in esecuzione via `dotnet run --project src/dr-mailroom-api --launch-profile http`, avviato in background in questa sessione; `GET /api/v1/status` → `databaseReady: true`. Il cron Quartz è attivo e legge le caselle reali.
-- `public/config.json` del FE presente in locale con la chiave API del backend, ignorato da git.
+- Piano coordinatore: Fasi 1, 2, 3, 3b, 4, 5b `[x]`; Fasi 5, 6, 7, 8, 9 `[ ]`
+- Piano FE: Checkpoint C1 `[x]`, Fase 11 `[x]`; Fasi 12–18 `[ ]`
+- **Nessun commit** nella sessione: entrambi i repo hanno modifiche non committate (vedi "File modificati")
+- Container in esecuzione: `dr-mailroom-api` (porta 5180, ricreato con le modifiche CORS e date) e `dr-mailroom-fe` (dietro `http://mailroom.spectre.local`, ricreato con le modifiche del piano backfill; **non** contiene la vista Filtri)
+- Immagini di rollback: `dr-mailroom-api:pre-cors`, `dr-mailroom-api:pre-date-fix`, `dr-mailroom-fe:pre-backfill-close`
+- Casella 1: backfill completato, 38.439 mail indicizzate
 
 ---
 
 # Componenti completati
 
-- Scaffold create-vue 3.24.0 (TS, router, Pinia, Vitest, Playwright, ESLint, Prettier)
-- Linee guida installate: `dr-guidelines` (916b257) e `dr-fe` (6f66968)
-- Dipendenze dello stack (versioni nella tabella del piano), script `lint:check`, `format:check`, `gen:api`; porta Vite fissa 5173
-- Configurazione runtime da `config.json` e client API tipizzato (`src/services/api/`)
-- Token di design, font self-hosted (Saira, JetBrains Mono), tema chiaro/scuro (`useTheme`, store `ui`)
-- 11 componenti generici in `src/components/shared/`
+- Checkpoint C1: vista Caselle approvata dall'utente (2026-10-10)
+- CORS di sviluppo: opzione `Mailroom:Frontend:ExtraCorsOrigins` (vuota di default), `http://localhost:5173` solo nel `.env` locale
+- Date 1970: `ReceivedDateResolver` (internalDate > 0 → header `Date` → ora di lettura), header `Date` richiesto a Gmail, warning strutturato, riparazione a inizio giro delle mail con data = 1970-01-01 (max 50 per giro); le 10 righe esistenti riparate (giro 25)
+- Vista Filtri FE (Fase 11): elenco a card con ricerca, costruttore a frase e form classico, anteprima, riapplica, elimina, allegati, precompilazione `?sender=`
+- Validazione regex del filtro: solo lato server (motore .NET)
 
 ---
 
 # Componenti in lavorazione
 
-- Nessuno (la Fase 8 è chiusa; la Fase 9 non è iniziata)
+Nessuno
 
 ---
 
 # Componenti mancanti
 
-- Fase 9: guscio (sidebar, header), router per dominio, banner di stato del servizio
-- Fase 9.1: icona dell'applicazione (favicon, PNG, manifest, `AppMark.vue`)
-- Fase 10: vista Caselle; Checkpoint C1 con l'utente
-- Fasi 11–13: viste Filtri, Esecuzioni, Statistiche
-- Fase 14: test end-to-end Playwright
-- Fase 15: container nginx
-- Fase 16: profili di debug e compound nel workspace
-- Fase 17: README FE e aggiornamento dei docs del backend
-- Fase 18: gate di qualità e `/dr-audit-fe`
+- Fase 5 (= Fase 12 piano FE): vista Esecuzioni, compresa la lettura di `/runs?runIds=<id,…>&skippedMailboxIds=<id,…>` prodotta da "Riapplica"
+- Fase 6: BE `GET /api/v1/stats/senders/overview` (paginato, ordinabile, ricerca, `year` facoltativo) e `GET /api/v1/stats/years` (`mailboxId` obbligatorio, `senderAddress` facoltativo con confronto esatto)
+- Fase 7: misura della query su ~48.000 mail; indice `(MailboxId, SenderAddress, ReceivedAtUtc) INCLUDE (Subject)` solo se > 300 ms
+- Fase 8: documentazione BE del nuovo endpoint (`/dr-professor`)
+- Fase 9 (= Fase 13 piano FE): vista Statistiche (selettore casella e anno, tabella paginata, barre top 20, dettaglio mittente per anno, "Crea filtro da questo mittente")
+- Fasi 14–18 del piano FE (e2e, container, debug combinato, documentazione, chiusura)
 
 ---
 
 # File modificati
 
-Repo `dr-mailroom` (backend):
+Repo `dr-mailroom` (in questa sessione):
+- `src/dr-mailroom-core/Configuration/FrontendOptions.cs` — `ExtraCorsOrigins`
+- `src/dr-mailroom-api/Program.cs` — origini CORS = `BaseUrl` + `ExtraCorsOrigins`
+- `.env.example` — voce commentata `Mailroom__Frontend__ExtraCorsOrigins__0`
+- `.env` (non tracciato) — `Mailroom__Frontend__ExtraCorsOrigins__0=http://localhost:5173`
+- `src/dr-mailroom-core/Gmail/ReceivedDateResolver.cs`, `ReceivedDateSource.cs` (nuovi) — data di ricezione senza ripiego su 0
+- `src/dr-mailroom-core/Gmail/GmailMessageMetadata.cs` — `ReceivedDateSource`, `RawInternalDate`
+- `src/dr-mailroom-core/Gmail/GmailSession.cs` — header `Date`, uso del resolver, warning
+- `src/dr-mailroom-core/Gmail/GmailConstants.cs` — `DateHeader`
+- `src/dr-mailroom-core/Infrastructure/Mailroom/MessageProvider.cs` — `GetUndatedMessagesAsync` (con `AsTracking`), `SaveChangesAsync`
+- `src/dr-mailroom-core/Ingestion/MailboxIngestionService.cs` — `RepairUndatedMessagesAsync`, `MaxUndatedRepairsPerRun = 50`
+- `test/dr-mailroom-tests/Api/CorsTests.cs` (nuovo) — 3 test CORS
+- `test/dr-mailroom-tests/Gmail/ReceivedDateResolverTests.cs` (nuovo), `Gmail/GmailSessionTests.cs` — test del resolver e del ripiego su header `Date`
+- `test/dr-mailroom-tests/Ingestion/MailboxIngestionServiceTests.cs` — test di riparazione
+- `test/dr-mailroom-tests/Infrastructure/InMemoryMailroomDb.cs` — `NoTracking` come in produzione
+- `test/dr-mailroom-tests/Runs/RunOrchestratorTests.cs` — `AsTracking()` nella preparazione di `PausedMailbox_RunIsSkipped_AndNothingIsReadAsync`
+- `.ai/plans/2026-10-09-completamento-fe/plan.md` (nuovo), `.ai/plans/2026-10-08-dr-mailroom-fe/plan.md` (v1.3), `.ai/permessi-richiesti.md`
 
-- `.ai/plans/2026-10-08-dr-mailroom-fe/plan.md`: v1.1 (allineamento alla specifica v1.1), v1.2 (fase icona), path del workspace, D-1/D-2/D-3 chiuse, stato delle fasi 1–8
-- `.ai/plans/2026-10-08-dr-mailroom-fe/design.md`: etichetta "Esegui ora", token `--c-neutral`, `--c-control-border`, `--c-on-*`, tabella dei contrasti misurati, regola sulle icone
-- `.ai/plans/2026-10-08-dr-mailroom-fe/handoff.md`: stato a fine sessione
-- `.ai/plans/2026-10-08-dr-mailroom-fe/icon-prompt.md`: nuovo, prompt per generare l'icona con un generatore esterno
-- `.ai/plans/2026-10-02-mailroom-gmail-reader/plan.md`: nota "da rivedere quando il frontend è pronto"
-- `.ai/permessi-richiesti.md` (ignorato da git): 4 righe di permessi
-- `HANDOFF.md`, `SESSION.md`, `DECISIONI.md`, `NEXT_PROMPT.md`: questo handoff
+Repo `dr-mailroom` (non committati, da sessioni/piani precedenti): file del piano backfill (`Mailbox.cs`, `MailboxProvider.cs`, `RunOrchestrator.cs`, `MailboxDto.cs`, `MailboxRunDto.cs`, migration `20261009182050_MailboxProgress`, `FakeGmail.cs`, `MailboxDtoTests.cs`, `docs/*`), `.gitignore` (regola `Gmail/` ancorata alla radice)
 
-Repo `dr-mailroom-fe`: tutti i file sono nuovi; elenco per commit in `git log` (da `e799170` a `913c47a`).
+Repo `dr-mailroom-fe` (in questa sessione, Fase 11):
+- `src/services/filtersService.ts`, `src/services/messagesService.ts`, `src/stores/filters.ts` (nuovi)
+- `src/composables/filters/*`, `src/components/filters/*` (nuovi)
+- `src/views/FiltersView.vue`
+- `src/services/api/problem.ts` (+ test) — 201 trattato come successo
+- `src/composables/filters/filterForm.ts` (+ test) — rimossa `isCompilableRegex`
+
+Repo `dr-mailroom-fe` (non committati, piano backfill): `MailboxCard.vue`, `MailboxDetailDialog.vue`, `MailboxTable.vue`, `ProgressMeter.vue`, `mailboxPresentation.ts`, `useMailboxesView.ts`, `useMailboxPolling.ts`, `schema.d.ts`, `stores/mailboxes.ts`, `utils/formatNumber.ts` e test
 
 ---
 
 # Decisioni progettuali
 
-Dettaglio in `DECISIONI.md`. In sintesi:
-
-- Repo FE pubblico
-- TypeScript 6.0.x (non 7)
-- `overrides` per il peer di `openapi-typescript`
-- Chiave API solo in memoria, letta da `config.json`
-- Font Saira confermato "per ora"
-- Etichette operative dalla specifica, metafora solo come sopratitolo
-- Commit locale per fase, Checkpoint C1 dopo la Fase 10
-- Fase dedicata all'icona dell'applicazione
-- Token aggiuntivi per bordi dei controlli e testo su fondi pieni
+Vedi `DECISIONI.md`.
 
 ---
 
 # Problemi aperti
 
-- **Attività incompleta**: Fasi 9–18 del piano FE.
-- **Limitazione**: `dr-guidelines-install.ps1 -Package dr-fe` non installa il core; segnalato in `davraf-amuro/dr-fe#1`.
-- **Limitazione**: `typescript-eslint` 8.71 non supporta TypeScript 7 (`typescript-eslint/typescript-eslint#10940`).
-- **Debito tecnico**: `openapi-typescript` 7.13 dichiara peer `typescript ^5.x`; usato con TS 6 tramite `overrides`.
-- **Debito tecnico**: `npm audit` segnala 4 vulnerabilità high solo nelle dipendenze di sviluppo (`braces`, GHSA-vfj7-8cjw-p6xm); 0 in produzione.
-- **Attività incompleta**: il piano backend `2026-10-02-mailroom-gmail-reader` è `INTERROTTO`, da rivedere a FE pronto.
-- **Debito tecnico**: `src/views/HomeView.vue` e `src/router/index.ts` del FE sono provvisori.
-- **Attività incompleta**: il riferimento "vuejs/language-tools #6121" nel piano non è risolvibile con `gh` (annotato nel piano).
+- **Attività incompleta**: nessun commit. Le cartelle `src/dr-mailroom-core/Gmail/` e `test/dr-mailroom-tests/Gmail/` risultano interamente non tracciate (prima escluse da `.gitignore`), quindi non sono mai state committate
+- **Attività incompleta**: il container `dr-mailroom-fe` non contiene la vista Filtri (non ricostruito dopo la Fase 11)
+- **Limitazione**: 10 mail di spam con `internalDate = 0` da Gmail restano datate come lette (9 al 2026-10-10, 1 dall'header `Date`); l'utente le elimina da Gmail
+- **Limitazione**: il filtro `senderAddress` di `/stats/senders/monthly` usa `Contains`, non l'uguaglianza
+- **Debito tecnico**: il DbContext è `NoTracking` di default (`MailroomProviderExtensions.cs:22`); ogni aggiornamento richiede `AsTracking()`
+- **Attività incompleta**: in `briefs/` c'è un nuovo brief `20261011-01.md`, non letto in questa sessione
 
 ---
 
 # TODO
 
-1. Fase 9: guscio, route `/mailboxes` (default), `/filters`, `/runs`, `/stats`, 404, banner di stato con `GET /status` ogni 60 s e `POST /status/retry-database`, ascolto di `onApiAlarm`
-2. Fase 9.1: icona; usare `dr-mailroom-fe/design/icon-source.png` se l'utente la fornisce, altrimenti disegnarla da zero
-3. Fase 10: vista Caselle con Pausa/Riprendi ed Elimina
-4. Checkpoint C1: mostrare all'utente vista Caselle (light/dark), banner, stato vuoto, icona; raccogliere il giudizio su Saira
-5. Fasi 11–18 nell'ordine del piano
-6. Chiedere all'utente se fermare il backend avviato in background
+1. Fase 5: eseguire la Fase 12 del piano FE (vista Esecuzioni, compresa la query `runIds`/`skippedMailboxIds`)
+2. Fase 6: implementare `stats/senders/overview` e `stats/years` con validator, test e `ToQueryString`; ricreare il container API (tag `pre-overview`)
+3. Fase 7: misurare la query sulla casella 1; indice solo se > 300 ms
+4. Fase 8: `/dr-professor` per la documentazione del nuovo endpoint
+5. Fase 9: `npm run gen:api` ed esecuzione della Fase 13 riscritta del piano FE
+6. Ricostruire il container FE dopo le viste nuove
+7. Chiedere all'utente se e come committare (due repo)
 
 ---
 
 # Validazione
 
-Esiti osservati in sessione sul repo FE, dopo l'ultimo commit `913c47a`:
-
-- build (`npm run build`): exit 0
-- test (`npx vitest --run`): 21 passati su 21
-- lint (`npm run lint:check`): exit 0
-- type-check (`npm run type-check`): exit 0
-- format (`npm run format:check`): exit 0
-- prova dal vivo del client: 200 con chiave e `Access-Control-Allow-Origin: http://localhost:5173`, 401 senza chiave
-
-Backend: build e test non eseguiti in questa sessione → Sconosciuto.
+- Build BE: `dotnet build` 0 avvisi, 0 errori (dopo le ultime modifiche)
+- Test BE: 131 superati, 1 ignorato, 0 falliti
+- Lint BE: `dotnet format --verify-no-changes` exit 0
+- FE: `type-check`, `lint:check`, `format:check`, `build` exit 0; vitest 139/139
+- Verifica in esecuzione: preflight CORS (5173 e `mailroom.spectre.local` ammesse, `evil.local` rifiutata); giro 25 `Completed`; `stats/senders/monthly?mailboxId=1` → 0 righe con `YearMonth < 200001`
 
 ---
 
 # Rischi
 
-- Il backend in background esegue il cron sulle caselle Gmail reali finché non viene fermato.
-- `public/config.json` contiene la chiave API in un repo pubblico: è ignorato da git; la Fase 18 prevede il controllo `git ls-files public/config.json`.
-- Il CORS del backend ammette solo `http://localhost:5173`: la Fase 15 (container) richiede di allineare `Mailroom:Frontend:BaseUrl`.
-- Gli id nello schema OpenAPI sono `number | string` (int64 di .NET 10): i componenti di dominio devono gestire entrambi.
-- Lo script `lint` di create-vue usa `--fix`: il gate è `lint:check`.
+- Modifiche consistenti non committate in due repo, comprese cartelle mai tracciate
+- Il contesto `NoTracking`: un aggiornamento senza `AsTracking()` non viene salvato e non dà errori
+- Ricreare il container API interrompe un giro in corso: controllare prima `currentRun` su `GET /api/v1/mailboxes`
+- La Fase 13 dipende dal contratto delle Fasi 6–8: non va iniziata prima
 
 ---
 
 # Prossimo passo consigliato
 
-Eseguire la Fase 9 del piano `.ai/plans/2026-10-08-dr-mailroom-fe/plan.md` nel repo `dr-mailroom-fe`.
+Eseguire la Fase 12 del piano FE (vista Esecuzioni) come Fase 5 del piano coordinatore.
 
 ---
 
 # Informazioni mancanti
 
-- Se l'utente fornirà un'immagine sorgente per l'icona (Fase 9.1)
-- Se il backend avviato in background va fermato o lasciato attivo
-- Quando fare il push dei commit locali di entrambi i repo
+- Strategia di commit desiderata dall'utente per i due repo: Sconosciuto
+- Contenuto e priorità di `briefs/20261011-01.md`: Sconosciuto

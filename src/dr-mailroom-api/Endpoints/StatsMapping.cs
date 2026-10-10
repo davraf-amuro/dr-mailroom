@@ -36,6 +36,22 @@ public static class StatsMapping
             .WithSummary("Mail per mittente e mese")
             .WithDescription("Conteggio per mittente, casella e mese (YearMonth = yyyyMM). 404 se vuoto.");
 
+        group.MapGet("/senders/overview", GetOverviewHandlerAsync)
+            .Produces<SenderOverviewPageDto>(StatusCodes.Status200OK)
+            .Produces<HttpValidationProblemDetails>(StatusCodes.Status400BadRequest)
+            .Produces<ProblemDetails>(StatusCodes.Status404NotFound)
+            .WithName("GetSenderOverview")
+            .WithSummary("Panoramica mittenti di una casella")
+            .WithDescription("Per indirizzo email (mai per nome): numero di mail, data e oggetto della più vecchia e della più recente. Paginata (pageSize 1–100, default 25), ordinabile (sortBy MailCount|LastReceivedAt|FirstReceivedAt|SenderAddress, sortDir Asc|Desc; default MailCount Desc), ricerca nell'indirizzo, year facoltativo. 404 se la casella non esiste; nessun mittente → 200 con totalCount 0.");
+
+        group.MapGet("/years", GetYearsHandlerAsync)
+            .Produces<List<YearStatDto>>(StatusCodes.Status200OK)
+            .Produces<HttpValidationProblemDetails>(StatusCodes.Status400BadRequest)
+            .Produces<ProblemDetails>(StatusCodes.Status404NotFound)
+            .WithName("GetYearStatList")
+            .WithSummary("Mail per anno")
+            .WithDescription("Mail ricevute per anno, dal più recente, della casella o di un suo mittente (senderAddress confrontato per uguaglianza). 404 se la casella non esiste; nessuna mail → 200 con lista vuota.");
+
         return routes;
     }
 
@@ -63,5 +79,33 @@ public static class StatsMapping
         }
 
         return EndpointResults.ListOrNoData(await service.GetSenderMonthlyStatsAsync(filter, cancellationToken));
+    }
+
+    /// <summary>Panoramica paginata dei mittenti.</summary>
+    private static async Task<IResult> GetOverviewHandlerAsync(
+        [AsParameters] SenderOverviewFilter filter, IValidator<SenderOverviewFilter> validator, StatsService service, CancellationToken cancellationToken)
+    {
+        var validation = validator.Validate(filter);
+        if (!validation.IsValid)
+        {
+            return TypedResults.ValidationProblem(validation.Errors);
+        }
+
+        var result = await service.GetSenderOverviewAsync(filter, cancellationToken);
+        return result.Outcome == ServiceOutcome.Ok ? TypedResults.Ok(result.Value) : EndpointResults.Failure(result);
+    }
+
+    /// <summary>Mail per anno.</summary>
+    private static async Task<IResult> GetYearsHandlerAsync(
+        [AsParameters] YearStatFilter filter, IValidator<YearStatFilter> validator, StatsService service, CancellationToken cancellationToken)
+    {
+        var validation = validator.Validate(filter);
+        if (!validation.IsValid)
+        {
+            return TypedResults.ValidationProblem(validation.Errors);
+        }
+
+        var result = await service.GetYearStatsAsync(filter, cancellationToken);
+        return result.Outcome == ServiceOutcome.Ok ? TypedResults.Ok(result.Value) : EndpointResults.Failure(result);
     }
 }

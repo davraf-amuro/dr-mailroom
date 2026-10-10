@@ -1,101 +1,71 @@
-# Decisioni
+# Decisioni — brief 20261009-01 (2026-10-09 / 2026-10-10)
 
-Decisioni prese nella sessione 2026-10-08 → 2026-10-09 sul frontend `dr-mailroom-fe`. Quelle di stack, prese prima di questa sessione, sono nella tabella "Decisioni di stack" di `.ai/plans/2026-10-08-dr-mailroom-fe/plan.md`; quelle del backend nel piano `.ai/plans/2026-10-02-mailroom-gmail-reader/plan.md` e in `docs/architettura.md`.
+## Nuovo endpoint per le statistiche per mittente
 
-## Repo FE pubblico
+Contesto: `/stats/senders` restituisce solo `MailCount`; servono data+oggetto della prima e dell'ultima mail.
 
-- **Contesto:** domanda aperta D-1 del piano.
-- **Decisione:** `davraf-amuro/dr-mailroom-fe` pubblico.
-- **Motivazione:** scelta dell'utente.
-- **Conseguenze:** `public/config.json` ignorato da git; la Fase 18 controlla che non sia tracciato.
+Decisione: nuovo `GET /api/v1/stats/senders/overview` (paginato, ordinabile, con ricerca); `/stats/senders` e `/stats/senders/monthly` invariati.
 
-## Font Saira "per ora"
+Motivazione: non rompere il contratto esistente; paginazione obbligatoria con 2.440 mittenti.
 
-- **Contesto:** domanda aperta D-3.
-- **Decisione:** Saira, da rivalutare al Checkpoint C1.
-- **Motivazione:** scelta dell'utente.
-- **Conseguenze:** un eventuale cambio tocca solo `tokens.css`/`main.css` e il pacchetto Fontsource.
+Conseguenze: Fasi 6–9 del piano coordinatore.
 
-## Piano `mailroom-gmail-reader` da rivedere a FE pronto
+## Aggregazione per indirizzo email e filtro anno
 
-- **Contesto:** il piano backend è `INTERROTTO`.
-- **Decisione:** resta `INTERROTTO`, con una nota di revisione futura.
-- **Motivazione:** scelta dell'utente.
-- **Conseguenze:** non blocca il piano FE.
+Contesto: le viste esistenti restituiscono fino a 11.737 righe (1,09 MB).
 
-## Etichette dalla specifica, metafora come sopratitolo
+Decisione: aggregare per `SenderAddress`, mai per nome; `year` facoltativo su `overview`; `GET /stats/years` per il selettore e per il dettaglio del mittente (con `senderAddress` esatto).
 
-- **Contesto:** la specifica dice "Esegui ora", design.md diceva "Lancia giro".
-- **Decisione:** "Esegui ora" con sopratitolo "Sortita".
-- **Motivazione:** coerenza con la specifica e con la regola di design.md "etichetta chiara accanto alla metafora".
-- **Conseguenze:** design.md v1.1 aggiornato.
+Motivazione: nessuna vista nuova, nessuna migration, rollback = immagine precedente.
 
-## Revisione v1.1 del piano
+Conseguenze: il FE non carica più le viste mensili; heatmap rimandata.
 
-- **Contesto:** il piano era precedente alla specifica v1.1 (pausa casella, annullamento giri).
-- **Decisione:** aggiunti Pausa/Riprendi, Annulla/Annulla tutti, stop del polling su `Cancelled`, gestione 401, endpoint mancanti, nota CORS, controllo su `config.json`, commit locale per fase, Checkpoint C1.
-- **Motivazione:** revisione approvata dall'utente ("procedi").
-- **Conseguenze:** 26 endpoint coperti dai criteri finali.
+## Heatmap rimandata e azione "Crea filtro"
 
-## TypeScript 6.0.x
+Contesto: warroom UX/UI.
 
-- **Contesto:** l'utente ha chiesto la versione più recente possibile; TS 7.0.2 è uscito.
-- **Decisione:** restare su 6.0.3.
-- **Motivazione:** `typescript-eslint` 8.71 ha peer `typescript >=4.8.4 <6.1.0`.
-- **Conseguenze:** da rivalutare quando `typescript-eslint/typescript-eslint#10940` sarà chiusa.
+Decisione: la Fase 13 non include la heatmap mittente × mese; ogni riga delle statistiche ha "Crea filtro da questo mittente" → `/filters?sender=`.
 
-## Override per `openapi-typescript`
+Motivazione: il bisogno è decidere quali filtri creare; la heatmap non serve al brief.
 
-- **Contesto:** `openapi-typescript` 7.13 dichiara peer `typescript ^5.x`.
-- **Decisione:** `overrides: { "openapi-typescript": { "typescript": "$typescript" } }`, non `--legacy-peer-deps`.
-- **Motivazione:** eccezione limitata a un pacchetto; `gen:api` verificato funzionante.
-- **Conseguenze:** da rimuovere quando il pacchetto accetterà TS 6.
+Conseguenze: Fase 11 con precompilazione `?sender=` (fatta).
 
-## npm globale aggiornato
+## CORS solo in sviluppo per il dev server
 
-- **Contesto:** npm 10.7.0 falliva `npm install` con `Cannot read properties of null (reading 'edgesOut')`.
-- **Decisione:** `npm i -g npm@11` (11.21.0).
-- **Motivazione:** richiesta dell'utente.
-- **Conseguenze:** nessun bisogno di `npx npm@11`.
+Contesto: l'API in container ammetteva solo `http://mailroom.spectre.local`.
 
-## Avvio del backend da parte dell'agente
+Decisione: opzione `Mailroom:Frontend:ExtraCorsOrigins`, vuota di default, valorizzata solo nel `.env` locale; `BaseUrl` resta l'unica destinazione del redirect OAuth.
 
-- **Contesto:** la Fase 6 richiede `/openapi/v1.json`.
-- **Decisione:** l'agente avvia il backend in background (opzione B).
-- **Motivazione:** scelta dell'utente, informato che il cron legge le caselle reali.
-- **Conseguenze:** il processo resta attivo finché non viene fermato.
+Motivazione: parità degli ambienti senza origini di sviluppo nei file committati.
 
-## Chiave API in memoria, configurazione a runtime
+Conseguenze: il dev server 5173 funziona contro il container.
 
-- **Contesto:** `dr-minimalapi` non è installato nel FE; si applica il ripiego della Regola 7 di `frontend-organization.instructions.md`.
-- **Decisione:** chiave in una variabile di modulo di `client.ts`, letta da `config.json` prima del mount.
-- **Motivazione:** specifica ("non in localStorage", configurazione a runtime) e Regola 7.
-- **Conseguenze:** la stessa build gira con chiavi diverse; nessuna login né route guard.
+## Date di ricezione senza ripiego su 1970
 
-## Segnali globali separati dall'interpretazione delle risposte
+Contesto: 10 mail di spam con `internalDate = 0` restituito da Gmail, salvate come 1970-01-01.
 
-- **Contesto:** 401/403/503 devono arrivare al banner, indipendentemente dalla vista.
-- **Decisione:** `apiEvents.ts` (`onApiAlarm`) alimentato da un middleware del client; `problem.ts` resta una funzione pura.
-- **Motivazione:** responsabilità separate, test semplici.
-- **Conseguenze:** file non previsto dal piano, annotato nella Fase 6.
+Decisione: ordine delle fonti internalDate > 0 → header `Date` → ora di lettura, con warning; riparazione automatica delle righe con data = 1970-01-01. La data ricavabile dall'id Gmail **non** si usa; nessuna bonifica ulteriore delle 10 righe.
 
-## Token aggiuntivi di contrasto
+Motivazione: scelta dell'utente: sono spam e le elimina da Gmail.
 
-- **Contesto:** `--c-panel-line` misura 1.40:1 (light) e 1.32:1 (dark).
-- **Decisione:** `--c-control-border` (≥ 3:1) per i controlli e token `--c-on-*` per il testo su fondi pieni; panel line solo decorativa.
-- **Motivazione:** WCAG 1.4.3 e 1.4.11.
-- **Conseguenze:** tabella dei contrasti misurati in design.md.
+Conseguenze: 9 mail datate 2026-10-10, 1 dall'header `Date`.
 
-## Fase dedicata all'icona
+## Regex dei filtri validata solo dal server
 
-- **Contesto:** l'utente non vuole un'icona di ripiego su un'interfaccia curata; ha proposto di farla generare a ChatGPT.
-- **Decisione:** Fase 9.1 nel piano (v1.2); prompt in `icon-prompt.md`; l'immagine eventuale viene ridisegnata in SVG.
-- **Motivazione:** leggibilità a 16 px; l'agente non ha accesso a ChatGPT.
-- **Conseguenze:** icona mostrata al Checkpoint C1.
+Contesto: la validazione lato client con `RegExp` di JavaScript rifiutava sintassi valide in .NET.
 
-## Conferma che non si chiude da sola
+Decisione: il FE non compila la regex; mostra il 400 del server accanto al campo.
 
-- **Contesto:** le conferme (elimina, annulla) avviano chiamate asincrone.
-- **Decisione:** `ConfirmDialog` emette `confirm` e resta aperta; la chiude il chiamante.
-- **Motivazione:** gestire `busy` e gli errori 409 senza perdere la finestra.
-- **Conseguenze:** ogni vista gestisce la chiusura dopo l'esito.
+Motivazione: il server (`ValidationRules.cs`) usa lo stesso motore che applica il filtro.
+
+Conseguenze: rimossa `isCompilableRegex` dal FE.
+
+## Ordine di esecuzione
+
+Contesto: piano backfill con una migration aperta; Fase 13 dipendente dal nuovo contratto.
+
+Decisione: C1 → piano FE → chiusura backfill → CORS → Filtri ∥ date → Esecuzioni → BE statistiche → misura → doc → FE Statistiche.
+
+Motivazione: una migration aperta per volta; contratto API stabile prima della Fase 13.
+
+Conseguenze: prossima la Fase 5 (Esecuzioni).

@@ -48,6 +48,31 @@ public static class ValidationRules
         }
     }
 
+    /// <summary>Casella obbligatoria: Id positivo (l'esistenza la verifica il servizio).</summary>
+    public static void RequiredMailboxId(IDictionary<string, string[]> errors, int? mailboxId)
+    {
+        if (mailboxId is null)
+        {
+            Add(errors, "mailboxId", "La casella è obbligatoria");
+            return;
+        }
+
+        OptionalMailboxId(errors, mailboxId);
+    }
+
+    /// <summary>Primo anno ammesso nei filtri: le date di ricezione non scendono sotto l'epoca Unix.</summary>
+    public const int MinYear = 1970;
+
+    /// <summary>Anno facoltativo: da 1970 all'anno corrente + 1.</summary>
+    public static void OptionalYear(IDictionary<string, string[]> errors, int? year)
+    {
+        var maxYear = DateTime.UtcNow.Year + 1;
+        if (year is int value && (value < MinYear || value > maxYear))
+        {
+            Add(errors, "year", $"L'anno va da {MinYear} a {maxYear}");
+        }
+    }
+
     /// <summary>Condizione sull'oggetto: tipo e valore insieme o nessuno dei due; tipo ammesso; valore max 500; regex compilabile.</summary>
     public static void SubjectCondition(IDictionary<string, string[]> errors, string? matchType, string? value)
     {

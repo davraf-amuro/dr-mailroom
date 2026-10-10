@@ -27,6 +27,8 @@ public static class ServiceRegistrationExtensions
         services.AddScoped<IValidator<AlertListFilter>, AlertListFilterValidator>();
         services.AddScoped<IValidator<SenderStatFilter>, SenderStatFilterValidator>();
         services.AddScoped<IValidator<SenderMonthlyStatFilter>, SenderMonthlyStatFilterValidator>();
+        services.AddScoped<IValidator<SenderOverviewFilter>, SenderOverviewFilterValidator>();
+        services.AddScoped<IValidator<YearStatFilter>, YearStatFilterValidator>();
         return services;
     }
 }

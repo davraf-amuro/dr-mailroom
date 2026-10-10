@@ -30,6 +30,9 @@ public sealed class FakeGmailSession : IGmailSession
     /// <summary>Eccezione lanciata da ogni lettura di pagine/history/profilo (es. TokenRevokedException).</summary>
     public Exception? FailEverythingWith { get; set; }
 
+    /// <summary>Totale messaggi restituito da getProfile.</summary>
+    public int? ProfileMessagesTotal { get; set; } = 1200;
+
     public List<string?> RequestedPageTokens { get; } = [];
 
     /// <summary>Se valorizzato, GetMetadataAsync lo completa e attende l'annullamento del giro.</summary>
@@ -37,8 +40,8 @@ public sealed class FakeGmailSession : IGmailSession
 
     public List<ulong> RequestedHistoryIds { get; } = [];
 
-    public Task<ulong> GetProfileHistoryIdAsync(CancellationToken cancellationToken) =>
-        FailEverythingWith is null ? Task.FromResult(ProfileHistoryId) : throw FailEverythingWith;
+    public Task<GmailProfile> GetProfileAsync(CancellationToken cancellationToken) =>
+        FailEverythingWith is null ? Task.FromResult(new GmailProfile(ProfileHistoryId, ProfileMessagesTotal)) : throw FailEverythingWith;
 
     public Task<MessageIdPage> ListMessageIdsPageAsync(string? pageToken, CancellationToken cancellationToken)
     {

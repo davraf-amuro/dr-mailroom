@@ -64,6 +64,27 @@ public class MessageProvider(MailroomDbContext context, ILogger<MessageProvider>
             .ToListAsync(cancellationToken);
     }
 
+    /// <summary>
+    /// Messaggi della casella salvati con data 1970-01-01 (internalDate assente, ripiego su 0 delle versioni precedenti),
+    /// tracciati per l'aggiornamento della data.
+    /// </summary>
+    public async Task<List<Message>> GetUndatedMessagesAsync(int mailboxId, int max, CancellationToken cancellationToken)
+    {
+        // Leggo da DB i messaggi con data 1970-01-01 con tracking: il contesto è NoTracking di default e li aggiorno
+        return await context.Messages.AsTracking()
+            .Where(m => m.MailboxId == mailboxId && m.ReceivedAtUtc <= DateTime.UnixEpoch)
+            .OrderBy(m => m.Id)
+            .Take(max)
+            .ToListAsync(cancellationToken);
+    }
+
+    /// <summary>Salva le modifiche tracciate (date riparate).</summary>
+    public async Task SaveChangesAsync(CancellationToken cancellationToken)
+    {
+        // Scrivo su DB le date aggiornate
+        await context.SaveChangesAsync(cancellationToken);
+    }
+
     /// <summary>Messaggi già indicizzati di un mittente nella casella: candidati della riapplica (D13).</summary>
     public async Task<List<Message>> GetMessagesBySenderAsync(int mailboxId, string senderAddress, CancellationToken cancellationToken)
     {

@@ -22,7 +22,7 @@ Tutti gli endpoint richiedono la chiave API nell'header `x-api-key`. L'unica ecc
 | Provider | `MailboxProvider`, `RunProvider` (in `src/dr-mailroom-core/Infrastructure/Mailroom/`) | Accesso alle tabelle delle caselle e dei giri |
 | Sicurezza | `IGmailAuthorizer`, `ITokenProtector`, `OAuthStateProtector` (in `dr-mailroom-core`) | URL di consenso, scambio del codice, cifratura del refresh token, firma dello `state` |
 | Entity | `Mailbox` | Casella con stato e token cifrato |
-| DTO | `MailboxDto`, `MailboxSummaryDto`, `ConnectUrlDto` | Risposte |
+| DTO | `MailboxDto` (con `MailboxRunDto` per il giro in corso), `MailboxSummaryDto`, `ConnectUrlDto` | Risposte; `MailboxDto` porta anche l'avanzamento del backfill (`messagesIndexed` su `messagesTotal`), il giro `Running` più recente (`currentRun`, null se nessuno) e `lastErrorRunId` |
 
 Accesso DB: sì. Servizi esterni: sì, Google OAuth 2.0 (solo `connect` e `connect/callback`).
 
@@ -103,4 +103,4 @@ flowchart LR
 Per i casi d'uso fare riferimento a `src/dr-mailroom-api/dr-mailroom-api.http`.
 
 ---
-*Revisione v1.1 — 2026-10-08 23:03 — claude-opus-5-5*
+*Revisione v1.2 — 2026-10-09 20:35 — claude-opus-5-5*

@@ -1,7 +1,7 @@
 # Piano: frontend dr-mailroom-fe (SPA Vue 3, direzione "Hangar Federale")
 Data: 2026-10-08
 Stato: IN CORSO
-Revisione: v1.1 del 2026-10-08 — allineato alla specifica v1.1 (pausa casella, annullamento giri), vedi "Registro revisioni"
+Revisione: v1.3 del 2026-10-10 — Fasi 11 e 13 aggiornate dal brief 20261009-01; v1.1 del 2026-10-08 — allineato alla specifica v1.1 (pausa casella, annullamento giri), vedi "Registro revisioni"
 
 Allegati: [design.md](design.md) — direzione visiva, token, lessico, motion · [handoff.md](handoff.md) — come riprendere in una nuova sessione.
 
@@ -183,7 +183,7 @@ Radice: `E:\Davide\Progetti\dr-mailroom-workspace\dr-mailroom-fe\` (nuovo repo, 
 - **Su divergenza**: STOP — scrivi `⚠️ Divergenza Fase 10: <cosa>` in plan.md, non procedere
 
 ### Checkpoint C1: revisione visiva con l'utente
-- **Stato**: [ ]
+- **Stato**: [x] — 2026-10-10, OK dell'utente ("procedi") su screenshot light/dark desktop e mobile del container `mailroom.spectre.local`. Nota: il dev server 5173 non raggiunge l'API in container (CORS ammette solo `http://mailroom.spectre.local`); nessuna correzione richiesta
 - **Precondizione**: Fase 10 `[x]`
 - **File**: nessuno
 - **Operazione**: —
@@ -193,33 +193,33 @@ Radice: `E:\Davide\Progetti\dr-mailroom-workspace\dr-mailroom-fe\` (nuovo repo, 
 - **Su divergenza**: STOP — scrivi `⚠️ Divergenza Checkpoint C1: <cosa>` in plan.md, non procedere
 
 ### Fase 11: Vista Filtri ("Regole d'ingaggio")
-- **Stato**: [ ]
+- **Stato**: [x] — nessun commit (richiesta della sessione). File: `FiltersView.vue`, `components/filters/*` (FilterBuilder, FilterCard, FilterPreviewPanel, FilterSearch, ReapplyDialog, AttachmentsDialog), `composables/filters/*`, `filtersService.ts`, `messagesService.ts`, `stores/filters.ts`. Test: 140 totali verdi (nuovi: filterForm, store filters, useSenderPrefill, useFilterReapply, 201 in problem.spec). Gate type-check, lint:check, format:check, vitest, build tutti 0. Verifica visiva Playwright light/dark, 1440 e 390, con POST/PUT/DELETE/reapply simulati. Note: `problem.ts` tratta ora 201 come successo (retrocompatibile); la riapplica naviga a `/runs?runIds=1,2[&skippedMailboxIds=…]`, contratto che la Fase 12 deve leggere; il controllo regex lato client usa RegExp JS (i flag in linea .NET come `(?i)` sono tollerati)
 - **Precondizione**: Checkpoint C1 `[x]`
 - **File**: `src/views/FiltersView.vue`, `src/components/filters/*`, `src/composables/filters/*`, `src/services/filtersService.ts`, `src/services/messagesService.ts`, `src/stores/filters.ts`
 - **Operazione**: CREATE
-- **Azione**: implementa "Vista 2 — Filtri": elenco come card-frase con cancellazione (`DELETE /filters/{id}` con `ConfirmDialog`), costruttore a frase con modalità form classico, validazioni lato client allineate a D15, errori 400 accanto al campo, anteprima dry-run in pannello affiancato con `aria-live`, link "Allegati salvati", modale Riapplica con processi del filtro, 202 → navigazione a `/runs` filtrata sui `runIds`
+- **Azione**: implementa "Vista 2 — Filtri": elenco come card-frase con cancellazione (`DELETE /filters/{id}` con `ConfirmDialog`), costruttore a frase con modalità form classico, validazioni lato client allineate a D15, errori 400 accanto al campo, anteprima dry-run in pannello affiancato con `aria-live`, link "Allegati salvati", modale Riapplica con processi del filtro, 202 → navigazione a `/runs` filtrata sui `runIds`; **precompilazione del costruttore da `/filters?sender=<indirizzo>`** (mittente validato come indirizzo, query ripulita dopo la lettura; usata dall'azione "Crea filtro" della Fase 13)
 - **Tool ammessi**: nessuno
-- **Verifica passo**: test del builder (campi condizionali `subjectValue`/`attachmentSubfolder`, almeno un processo); test della mappatura errori 400 per chiave camelCase; 409 mostra il testo della specifica
+- **Verifica passo**: test del builder (campi condizionali `subjectValue`/`attachmentSubfolder`, almeno un processo); test della mappatura errori 400 per chiave camelCase; 409 mostra il testo della specifica; test della precompilazione da `?sender=` (valido → campo mittente valorizzato; non valido → ignorato)
 - **Su divergenza**: STOP — scrivi `⚠️ Divergenza Fase 11: <cosa>` in plan.md, non procedere
 
 ### Fase 12: Vista Esecuzioni ("Ponte di lancio" + "Diario di bordo")
-- **Stato**: [ ]
+- **Stato**: [x] — 2026-10-10. Vista Esecuzioni: ponte di lancio (select caselle attive, «Esegui ora» con catapulta, card dei giri con avanzamento, «Annulla», timbro «Missione completata»), widget «ultimi giri», cronologia con filtri (casella, origine, stato, date) e `SortableTable`, `?runIds=&skippedMailboxIds=` (giri letti per id, avviso caselle saltate, «Tutta la cronologia»). Note di attuazione: (1) polling con `setInterval` + `useDocumentVisibility` come `useMailboxPolling` (Fase 10), non `autoRefetch` di Pinia Colada, mai configurata nel progetto — comportamento richiesto identico; (2) caselle da `GET /mailboxes` invece di `/mailboxes/summary`: serve `backfillCompleted` per l'avviso del primo giro; (3) date dei filtri inviate in UTC senza `Z` (il binding ASP.NET convertirebbe nell'ora locale del server). Test +48 (vitest 187/187), gate FE exit 0, container FE ricreato (rollback `dr-mailroom-fe:pre-runs`), screenshot light/dark desktop/mobile dal container; il container ora contiene anche la vista Filtri
 - **Precondizione**: Fase 11 `[x]`
 - **File**: `src/views/RunsView.vue`, `src/components/runs/*`, `src/composables/runs/useRunPolling.ts`, `src/services/runsService.ts`, `src/stores/runs.ts`
 - **Operazione**: CREATE
-- **Azione**: implementa "Vista 3 — Esecuzioni": "Esegui ora" (sopratitolo "Sortita") con animazione catapulta (< 600 ms, ramo reduced-motion), avviso backfill per caselle con `backfillCompleted = false`, polling 3–5 s con `autoRefetch` che si ferma su `Completed`/`Failed`/`Skipped`/**`Cancelled`** e `enabled` legato alla visibilità della scheda, annunci `aria-live` max ogni 10 s, timbro "Missione completata", **"Annulla" per giro `Running` e "Annulla tutti" sopra la cronologia** (`POST /runs/{id}/cancel`, `POST /runs/cancel`, `ConfirmDialog` con il testo della specifica, 202 → il polling vede `Cancelled`, 409/404 come avviso), badge grigio `Cancelled` con motivo da `errorSummary`, cronologia con filtri e `SortableTable`, nomi casella da `GET /mailboxes/summary`, nome filtro dei giri di riapplica da `GET /filters/summary`, widget "ultimi giri" da `GET /runs/summary` nella cella eroe
+- **Azione**: implementa "Vista 3 — Esecuzioni": "Esegui ora" (sopratitolo "Sortita") con animazione catapulta (< 600 ms, ramo reduced-motion), avviso backfill per caselle con `backfillCompleted = false`, polling 3–5 s con `autoRefetch` che si ferma su `Completed`/`Failed`/`Skipped`/**`Cancelled`** e `enabled` legato alla visibilità della scheda, annunci `aria-live` max ogni 10 s, timbro "Missione completata", **"Annulla" per giro `Running` e "Annulla tutti" sopra la cronologia** (`POST /runs/{id}/cancel`, `POST /runs/cancel`, `ConfirmDialog` con il testo della specifica, 202 → il polling vede `Cancelled`, 409/404 come avviso), badge grigio `Cancelled` con motivo da `errorSummary`, cronologia con filtri e `SortableTable`, nomi casella da `GET /mailboxes/summary`, nome filtro dei giri di riapplica da `GET /filters/summary`, widget "ultimi giri" da `GET /runs/summary` nella cella eroe; **lettura della query `?runIds=<id,…>&skippedMailboxIds=<id,…>`** prodotta da "Riapplica" (Fase 11): cronologia filtrata sui giri indicati e avviso con le caselle saltate (nomi da `/mailboxes/summary`)
 - **Tool ammessi**: nessuno
 - **Verifica passo**: test di `useRunPolling` (stop su ognuno dei 4 stati finali, `Cancelled` incluso; pausa con scheda nascosta; throttling annunci); test di Annulla e Annulla tutti (202, 409); 409 reso come avviso non rosso
 - **Su divergenza**: STOP — scrivi `⚠️ Divergenza Fase 12: <cosa>` in plan.md, non procedere
 
 ### Fase 13: Vista Statistiche ("Intelligence")
-- **Stato**: [ ]
-- **Precondizione**: Fase 12 `[x]`
-- **File**: `src/views/StatsView.vue`, `src/components/stats/*`, `src/composables/stats/*`, `src/services/statsService.ts`, `src/stores/stats.ts`, `src/utils/formatYearMonth.ts`
+- **Stato**: [x] — 2026-10-10. Vista Statistiche: cella eroe con frase calcolata (totale, anno, quota del mittente più attivo), selettori casella (incluse le eliminate) e anno (da `stats/years`, con conteggi), ricerca con debounce 300 ms, classifica top 20 (ECharts modulare, SVG, `aria`, palette dai token e aggiornata al cambio tema, niente animazione con reduced-motion; clic su barra → ricerca) con tabella alternativa in `<details>`, tabella paginata lato server (ordinamento con `aria-sort`, oggetti solo testo troncati con `title`, `<time datetime>`), azioni «Per anno» (dialog con barre + tabella) e «Crea filtro» → `/filters?sender=`; risposte fuori ordine scartate. Note di attuazione: (1) intestazioni ordinabili proprie invece di `SortableTable` (che riordina lato client); (2) nuovo `shared/PaginationNav.vue`; (3) il chunk `StatsView` pesa 534 kB (183 kB gzip) per ECharts, caricato solo su `/stats`. Test +19 (vitest 206/206), gate FE exit 0, container FE ricreato (rollback `dr-mailroom-fe:pre-stats`); verifica dal container: anno 2025 + ordinamento + ricerca + dettaglio + «Crea filtro» con mittente precompilato, nessun errore in console; screenshot light/dark desktop/mobile
+- **Precondizione**: Fase 12 `[x]` e Fase 8 del piano `2026-10-09-completamento-fe` `[x]` (endpoint `GET /api/v1/stats/senders/overview` disponibile)
+- **File**: `src/views/StatsView.vue`, `src/components/stats/*`, `src/composables/stats/*`, `src/services/statsService.ts`, `src/stores/stats.ts`, `src/services/api/schema.d.ts` (rigenerato)
 - **Operazione**: CREATE
-- **Azione**: implementa "Vista 4 — Statistiche": frase-titolo calcolata, classifica a barre orizzontali e heatmap mittente × mese con ECharts (import modulari, `aria` attivo, palette dai token), tabella equivalente ordinabile, clic su mittente → mensile filtrata, 404 → "Nessuna mail per i filtri scelti"
-- **Tool ammessi**: nessuno
-- **Verifica passo**: `formatYearMonth(202610)` → "ottobre 2026" (test); ogni grafico ha tabella alternativa raggiungibile da tastiera
+- **Azione**: `npm run gen:api`; implementa la vista statistiche per casella (revisione v1.3, brief `20261009-01`): selettore casella (nomi da `GET /mailboxes/summary`); **selettore anno** ("Tutti" predefinito + anni da `GET /stats/years?mailboxId=`, passato come `year` all'overview); mittente identificato **sempre dall'indirizzo email**, il nome solo come testo secondario; **tabella principale** da `/stats/senders/overview` paginata lato server, con ricerca su mittente (debounce), ordinamento per conteggio / più recente / più vecchia / mittente, colonne mittente (indirizzo + nome), mail, più recente (data in `<time datetime>` + oggetto), più vecchia (data + oggetto); oggetti resi **solo come testo**, troncati con `title` completo; al cambio casella reset di pagina, ricerca e ordinamento e annuncio `aria-live` del caricamento; **classifica a barre orizzontali dei primi 20 mittenti** (ECharts, import modulari, `aria` attivo, palette dai token) come sintesi sopra la tabella, clic su barra → ricerca del mittente in tabella; azione di riga **"Crea filtro da questo mittente"** → `/filters?sender=<indirizzo>`; **pannello di dettaglio del mittente** (`BaseDialog`) con il conteggio per anno da `GET /stats/years?mailboxId=&senderAddress=` (piccole barre + tabella equivalente); le viste mensili non si caricano; casella senza mail → "Nessuna mail per questa casella". Heatmap mittente × mese **rimandata** (fuori piano)
+- **Tool ammessi**: npm, playwright (screenshot)
+- **Verifica passo**: test del composable (parametri di query per pagina/ordinamento/ricerca, reset al cambio casella); test che l'oggetto con markup sia reso come testo; cambio anno → `year` nella query e reset della pagina; dettaglio mittente chiama `stats/years` con l'indirizzo esatto; "Crea filtro" naviga con `sender` codificato; la classifica ha la tabella come alternativa raggiungibile da tastiera
 - **Su divergenza**: STOP — scrivi `⚠️ Divergenza Fase 13: <cosa>` in plan.md, non procedere
 
 ### Fase 14: Test end-to-end
@@ -299,5 +299,7 @@ Radice: `E:\Davide\Progetti\dr-mailroom-workspace\dr-mailroom-fe\` (nuovo repo, 
 ## Registro revisioni
 - **v1.1 (2026-10-08)** — revisione con l'utente: pausa/ripresa casella (Fase 10) e annullamento giri con stop del polling su `Cancelled` (Fase 12) dalla specifica v1.1; gestione 401 (Fase 6); endpoint `filters/summary`, `runs/summary`, `DELETE /filters/{id}` assegnati (Fasi 11–12); etichetta "Esegui ora" allineata alla specifica; grep nomi protetti esteso; nota CORS sul container (Fase 15); controllo `config.json` non tracciato (Fase 18); commit per fase; Checkpoint C1 dopo la Fase 10.
 - **v1.2 (2026-10-08)** — richiesta dell'utente: Fase 9.1 "Icona dell'applicazione" (marchio originale, favicon, PNG, manifest) e regola sulle icone d'interfaccia in design.md.
+
+- **v1.3 (2026-10-10)** — brief [20261009-01](../../../briefs/20261009-01.md), piano [2026-10-09-completamento-fe](../2026-10-09-completamento-fe/plan.md): Checkpoint C1 approvato; Fase 11 con precompilazione `?sender=`; Fase 13 riscritta su `/stats/senders/overview` (tabella paginata con prima/ultima mail, barre top 20, "Crea filtro"), heatmap rimandata. Stesso giorno, decisioni successive: selettore anno, dettaglio per anno del mittente, aggregazione solo per indirizzo email.
 
 *Piano v1.1 — 2026-10-08 — claude-opus-5-5*

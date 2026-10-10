@@ -81,9 +81,12 @@ Una tabella da `GET /api/v1/mailboxes` (DTO `MailboxDto`):
 | Indirizzo | `emailAddress` | |
 | Stato | `status` | badge: `Active` verde, `TokenRevoked` arancione, `Disabled` grigio con etichetta "In pausa", `Deleted` grigio barrato |
 | Collegata | `isConnected` | |
-| Backfill | `backfillCompleted`, `backfillInProgress` | "Completato" / "In corso (riprende dal punto salvato)" / "Da avviare" |
-| Ultimo giro | `lastRunAtUtc` | |
-| Errore | `lastError` | testo troncato, completo al passaggio del mouse e nel dettaglio |
+| Backfill | `backfillCompleted`, `backfillInProgress`, `messagesIndexed`, `messagesTotal` | "Completato" / "In corso (riprende dal punto salvato)" / "Da avviare"; in corso: barra "N / ~T mail · P%" (`messagesTotal` approssimato, include Spam e Cestino; massimo 99% finché non è completato), indeterminata se `messagesTotal` è null |
+| Giro in corso | `currentRun` (`id`, `startedAtUtc`, `messagesRead`) | solo se presente: "Giro N · dal … · M mail lette in questo giro" |
+| Ultimo giro concluso | `lastRunAtUtc` | |
+| Errore | `lastError`, `lastErrorRunId`, `lastRunAtUtc` | testo troncato, completo al passaggio del mouse e nel dettaglio; sotto, "Giro N · data" (solo la data se `lastErrorRunId` è null) |
+
+Aggiornamento automatico: l'elenco si rilegge senza stato di caricamento ogni 15 s se una casella ha `currentRun`, ogni 60 s se una casella attiva ha il backfill in sospeso senza giro; nessuna rilettura altrimenti. Si ferma all'uscita dalla vista.
 
 Filtri sopra la tabella: indirizzo (testo) e stato (select). Sono i parametri di query `emailAddress` e `status`.
 
@@ -239,7 +242,7 @@ Una tabella da `GET /api/v1/runs`, dal più recente. Filtri: `mailboxId`, `trigg
 | Colonna | Campo |
 |---|---|
 | Avvio / fine | `startedAtUtc`, `endedAtUtc` |
-| Casella | `mailboxId` (nome da `GET /api/v1/mailboxes/summary`) |
+| Casella | `mailboxId` (nome da `GET /api/v1/mailboxes`, che porta anche `backfillCompleted` per l'avviso del primo giro) |
 | Origine | `trigger`: Schedulato / Manuale / Riapplica (con `filterId` e `requestedProcesses`) |
 | Stato | `status` |
 | Mail lette / lavorate | `messagesRead`, `messagesProcessed` |
@@ -257,19 +260,49 @@ Per i widget compatti (per esempio "ultimi giri" in home) c'è `GET /api/v1/runs
 
 Le statistiche contano **tutte** le mail lette, non solo quelle filtrate (D9). Restano disponibili anche per le caselle eliminate.
 
-### Totale per mittente
+Il mittente è **sempre il suo indirizzo email**; il nome visualizzato è solo testo secondario. Contratto completo degli endpoint: [endpoint-stats.md](endpoint-stats.md).
 
-`GET /api/v1/stats/senders` (filtri: `mailboxId`, `senderAddress`) → `SenderStatDto { mailboxId, senderAddress, mailCount }`, già ordinati dal mittente più attivo.
+### Casella e anno
 
-### Per mittente e mese
+- La select della casella si popola da `GET /api/v1/mailboxes/summary`, **incluse le `Deleted`** (marcate "eliminata"). All'apertura è proposta la prima casella attiva.
+- La select dell'anno si popola da `GET /api/v1/stats/years?mailboxId=` (anno e numero di mail). "Tutti" è il valore iniziale.
+- Al cambio casella anno, ricerca, ordinamento e pagina tornano ai valori iniziali; una regione `aria-live` annuncia caricamento e numero di mittenti.
 
-`GET /api/v1/stats/senders/monthly` (filtri: `mailboxId`, `senderAddress`, `yearMonthFrom`, `yearMonthTo` in formato `yyyyMM`) → `SenderMonthlyStatDto { mailboxId, senderAddress, yearMonth, mailCount }`.
+### Cella eroe
 
-Requisiti comuni:
-- tabelle **ordinabili** su ogni colonna. L'intestazione è un `<button>` con `aria-sort` aggiornato;
-- clic su un mittente nella tabella dei totali → apre quella mensile filtrata su quel mittente;
-- la select della casella si popola da `GET /api/v1/mailboxes/summary`, incluse le `Deleted`;
-- con **404** si mostra "Nessuna mail per i filtri scelti".
+Frase calcolata: totale delle mail del periodo e quota del mittente più attivo ("Il mittente più attivo, x@y.it, ne ha scritte 1.128 (3%)").
+
+### Classifica dei 20 mittenti più attivi
+
+- Fonte: `GET /api/v1/stats/senders/overview` con `sortBy=MailCount`, `pageSize=20` e l'anno scelto; la ricerca della tabella non la modifica.
+- Barre orizzontali (ECharts, colori dai token del tema, senza animazione con `prefers-reduced-motion`).
+- Clic su una barra → la tabella cerca quel mittente.
+- Alternativa da tastiera: "Classifica come tabella" (`<details>`) con lo stesso elenco.
+
+### Tabella dei mittenti
+
+`GET /api/v1/stats/senders/overview`, **paginata lato server** (25 righe):
+
+| Colonna | Campo | Ordinamento (`sortBy`) |
+|---|---|---|
+| Mittente | `senderAddress`, sotto `senderName` | `SenderAddress` |
+| Mail | `mailCount` | `MailCount` (predefinito, decrescente) |
+| Più recente | `lastReceivedAtUtc` in `<time datetime>` + `lastSubject` | `LastReceivedAt` |
+| Più vecchia | `firstReceivedAtUtc` in `<time datetime>` + `firstSubject` | `FirstReceivedAt` |
+
+- Intestazioni `<button>` con `aria-sort`: stessa colonna → inverte il verso; colonna nuova → dalla A per il mittente, dal valore più alto o più recente per le altre.
+- Ricerca sul mittente con debounce di 300 ms (`search`, solo sull'indirizzo); ricerca e ordinamento tornano a pagina 1.
+- Oggetti resi **solo come testo**, troncati a 80 caratteri con il testo completo nel `title`; oggetto vuoto → "(senza oggetto)".
+- Su schermi stretti la tabella scorre in orizzontale.
+- Le risposte arrivate fuori ordine (ricerca veloce, cambio casella) si scartano.
+- `totalCount: 0` → "Nessuna mail per questa casella", "Nessuna mail in questo anno" oppure "Nessun mittente per la ricerca". **404** → la casella non esiste più: avviso e nuovo elenco delle caselle.
+
+### Azioni di riga
+
+- **"Per anno"** apre un dialog con le mail del mittente anno per anno (`GET /api/v1/stats/years?mailboxId=&senderAddress=`, indirizzo esatto): barre e tabella equivalente.
+- **"Crea filtro"** (anche dal dialog) porta a `/filters?sender=<indirizzo>`: la vista Filtri precompila il mittente.
+
+Le viste mensili (`/stats/senders/monthly`) non sono caricate dalla vista: con migliaia di righe per casella servirebbero solo a una heatmap mittente × mese, **rimandata**.
 
 ---
 
@@ -292,8 +325,8 @@ Sono tutti i path esposti dalla Fase 15 (`/openapi/v1.json`).
 
 | Endpoint | Vista |
 |---|---|
-| `GET /api/v1/mailboxes` | Caselle (elenco) |
-| `GET /api/v1/mailboxes/summary` | Filtri (select casella), Esecuzioni (select e nomi), Statistiche (select) |
+| `GET /api/v1/mailboxes` | Caselle (elenco), Esecuzioni (select, nomi, avviso del primo giro) |
+| `GET /api/v1/mailboxes/summary` | Filtri (select casella), Statistiche (select) |
 | `GET /api/v1/mailboxes/{id}` | Caselle (dettaglio) |
 | `POST /api/v1/mailboxes/{id}/pause` | Caselle (Pausa) |
 | `POST /api/v1/mailboxes/{id}/resume` | Caselle (Riprendi) |
@@ -313,8 +346,8 @@ Sono tutti i path esposti dalla Fase 15 (`/openapi/v1.json`).
 | `GET /api/v1/runs/{id}` | Esecuzioni (polling) |
 | `POST /api/v1/runs/{id}/cancel` | Esecuzioni (Annulla) |
 | `POST /api/v1/runs/cancel` | Esecuzioni (Annulla tutti) |
-| `GET /api/v1/stats/senders` | Statistiche (totale) |
-| `GET /api/v1/stats/senders/monthly` | Statistiche (mensile) |
+| `GET /api/v1/stats/senders/overview` | Statistiche (classifica e tabella) |
+| `GET /api/v1/stats/years` | Statistiche (select anno, dettaglio del mittente) |
 | `GET /api/v1/messages/{id}/attachments` | Filtri (anteprima → allegati salvati) |
 | `GET /api/v1/status` | Banner di stato |
 | `POST /api/v1/status/retry-database` | Banner di stato |
@@ -327,6 +360,7 @@ Sono tutti i path esposti dalla Fase 15 (`/openapi/v1.json`).
 | `POST /api/v1/alerts/{id}/consume` | il **software esterno**, dopo aver notificato l'allerta |
 | `GET /api/v1/mailboxes/connect/callback` | il **browser**, reindirizzato da Google (anonimo, protetto dallo `state` firmato) |
 | `GET /health` | l'**infrastruttura** (healthcheck di container e reverse proxy) |
+| `GET /api/v1/stats/senders`, `GET /api/v1/stats/senders/monthly` | nessuno per ora: restano disponibili (per esempio per la heatmap rimandata) |
 
 ---
 
@@ -336,4 +370,4 @@ Sono tutti i path esposti dalla Fase 15 (`/openapi/v1.json`).
 - Codice: `src/dr-mailroom-api/Endpoints/`, `src/dr-mailroom-api/Dto/`, `src/dr-mailroom-api/Validators/`, `src/dr-mailroom-api/Services/MailboxService.cs`
 - Architettura: [architettura.md](architettura.md)
 
-*Revisione v1.1 — 2026-10-08 22:21 — claude-opus-5-5*
+*Revisione v1.3 — 2026-10-10 21:10 — claude-opus-5-5*

@@ -25,6 +25,10 @@ public class MessageConfiguration : IEntityTypeConfiguration<Message>
         builder.HasIndex(e => new { e.MailboxId, e.GmailMessageId }).IsUnique();
         builder.HasIndex(e => new { e.MailboxId, e.SenderAddress, e.YearMonth });
 
+        // Panoramica mittenti: raggruppamento per indirizzo, prima/ultima mail e il loro oggetto senza accedere alla tabella
+        builder.HasIndex(e => new { e.MailboxId, e.SenderAddress, e.ReceivedAtUtc })
+            .IncludeProperties(e => e.Subject);
+
         builder.HasOne(e => e.Mailbox)
             .WithMany(m => m.Messages)
             .HasForeignKey(e => e.MailboxId)

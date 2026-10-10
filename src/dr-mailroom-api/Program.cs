@@ -75,8 +75,11 @@ builder.Services.AddSingleton<DatabaseStartupService>();
 builder.Services.AddHealthChecks();
 
 var frontendBaseUrl = builder.Configuration[$"{FrontendOptions.SectionName}:{nameof(FrontendOptions.BaseUrl)}"] ?? string.Empty;
+var extraCorsOrigins = builder.Configuration
+    .GetSection($"{FrontendOptions.SectionName}:{nameof(FrontendOptions.ExtraCorsOrigins)}")
+    .Get<string[]>() ?? [];
 builder.Services.AddCors(options => options.AddDefaultPolicy(policy => policy
-    .WithOrigins(frontendBaseUrl.TrimEnd('/'))
+    .WithOrigins([frontendBaseUrl.TrimEnd('/'), .. extraCorsOrigins.Select(origin => origin.TrimEnd('/'))])
     .AllowAnyHeader()
     .AllowAnyMethod()));
 

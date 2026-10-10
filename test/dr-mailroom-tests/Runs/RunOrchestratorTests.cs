@@ -162,8 +162,30 @@ public sealed class RunOrchestratorTests : IAsyncDisposable
         Assert.Equal([RunStatus.Failed, RunStatus.Completed], runs.Select(r => r.Status));
         Assert.All(runs, r => Assert.Equal(RunTrigger.Scheduled, r.Trigger));
         Assert.Equal(2, await db.Messages.CountAsync(m => m.MailboxId == 2));
-        Assert.NotNull((await db.Mailboxes.SingleAsync(m => m.Id == 1)).LastError);
-        Assert.Null((await db.Mailboxes.SingleAsync(m => m.Id == 2)).LastError);
+        var failed = await db.Mailboxes.SingleAsync(m => m.Id == 1);
+        var healthy = await db.Mailboxes.SingleAsync(m => m.Id == 2);
+        Assert.NotNull(failed.LastError);
+        Assert.Equal(runs[0].Id, failed.LastErrorRunId);
+        Assert.Null(healthy.LastError);
+        Assert.Null(healthy.LastErrorRunId);
+    }
+
+    [Fact]
+    public async Task CompletedRun_ClearsPreviousErrorAndItsRunAsync()
+    {
+        var session = await _harness.AddMailboxAsync(1);
+        session.Pages[string.Empty] = new MessageIdPage(["a1"], null);
+        session.FailOnMetadataId = "a1";
+        await _harness.RunAsync(1, RunTrigger.Manual);
+
+        session.FailOnMetadataId = null;
+        var run = await _harness.RunAsync(1, RunTrigger.Manual);
+
+        Assert.Equal(RunStatus.Completed, run.Status);
+        await using var db = _harness.Db.CreateDbContext();
+        var mailbox = await db.Mailboxes.SingleAsync();
+        Assert.Null(mailbox.LastError);
+        Assert.Null(mailbox.LastErrorRunId);
     }
 
     [Fact]
@@ -279,7 +301,7 @@ public sealed class RunOrchestratorTests : IAsyncDisposable
         session.Pages[string.Empty] = new MessageIdPage(["a"], null);
         await using (var db = _harness.Db.CreateDbContext())
         {
-            (await db.Mailboxes.SingleAsync()).Status = MailboxStatus.Disabled;
+            (await db.Mailboxes.AsTracking().SingleAsync()).Status = MailboxStatus.Disabled;
             await db.SaveChangesAsync();
         }
 

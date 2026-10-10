@@ -446,7 +446,8 @@ FodyWeavers.xsd
 TODO/
 
 # Credenziali OAuth Google (client secret scaricato dalla console) — mai committare
-Gmail/
+# Ancorata alla radice: senza "/" escludeva anche i sorgenti src/dr-mailroom-core/Gmail/ e test/dr-mailroom-tests/Gmail/
+/Gmail/
 client_secret*.json
 
 # Log Serilog (file giornalieri) e dati locali del servizio (allegati, key ring)

@@ -28,6 +28,10 @@ public class Mailbox
     [Column("BackfillCompleted")]
     public bool BackfillCompleted { get; set; }
 
+    /// <summary>Totale messaggi della casella secondo Gmail (getProfile), letto all'avvio o alla ripresa del backfill; denominatore dell'avanzamento.</summary>
+    [Column("MessagesTotal")]
+    public int? MessagesTotal { get; set; }
+
     [Column("Status")]
     public MailboxStatus Status { get; set; } = MailboxStatus.Active;
 
@@ -36,6 +40,10 @@ public class Mailbox
 
     [Column("LastError")]
     public string? LastError { get; set; }
+
+    /// <summary>Giro che ha registrato LastError; null se l'ultimo giro concluso è andato a buon fine.</summary>
+    [Column("LastErrorRunId")]
+    public long? LastErrorRunId { get; set; }
 
     public ICollection<Message> Messages { get; set; } = [];
 
