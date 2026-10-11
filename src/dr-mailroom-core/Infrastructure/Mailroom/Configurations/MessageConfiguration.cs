@@ -17,6 +17,7 @@ public class MessageConfiguration : IEntityTypeConfiguration<Message>
         builder.Property(e => e.SenderName).HasMaxLength(ColumnLengths.DisplayName);
         builder.Property(e => e.Subject).HasMaxLength(ColumnLengths.Subject);
         builder.Property(e => e.Labels).HasMaxLength(ColumnLengths.Labels);
+        builder.Property(e => e.IsSent).HasDefaultValue(false);
 
         // YEAR e MONTH sono deterministici: la colonna può essere persistita e indicizzata
         builder.Property(e => e.YearMonth)
@@ -25,9 +26,9 @@ public class MessageConfiguration : IEntityTypeConfiguration<Message>
         builder.HasIndex(e => new { e.MailboxId, e.GmailMessageId }).IsUnique();
         builder.HasIndex(e => new { e.MailboxId, e.SenderAddress, e.YearMonth });
 
-        // Panoramica mittenti: raggruppamento per indirizzo, prima/ultima mail e il loro oggetto senza accedere alla tabella
+        // Panoramica mittenti: raggruppamento per indirizzo, prima/ultima mail, il loro oggetto e le inviate senza accedere alla tabella
         builder.HasIndex(e => new { e.MailboxId, e.SenderAddress, e.ReceivedAtUtc })
-            .IncludeProperties(e => e.Subject);
+            .IncludeProperties(e => new { e.Subject, e.IsSent });
 
         builder.HasOne(e => e.Mailbox)
             .WithMany(m => m.Messages)

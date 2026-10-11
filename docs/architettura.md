@@ -46,7 +46,7 @@ flowchart LR
 
 ---
 
-## Le decisioni del proprietario (D1–D19)
+## Le decisioni del proprietario (D1–D20)
 
 | # | Tema | Decisione |
 |---|------|-----------|
@@ -69,6 +69,7 @@ flowchart LR
 | D17 | Giro manuale su tutte le caselle | `POST /api/v1/runs` senza casella crea un giro per ogni casella attiva, con la stessa logica di D16 |
 | D18 | Rimozione di una casella | Solo logica: stato `Deleted` e refresh token cancellato. Niente più giri né modifiche ai suoi filtri (409); le statistiche restano. Un indirizzo eliminato non si può ricollegare |
 | D19 | Fermare il lavoro | `POST /api/v1/runs/{id}/cancel` e `POST /api/v1/runs/cancel` annullano uno o tutti i giri in corso, che chiudono `Cancelled`. `POST /api/v1/mailboxes/{id}/pause` mette la casella in pausa (`Disabled`, salvato su DB): niente giri dal cron, giro manuale e riapplica → 409, e annulla i giri in corso. `POST /api/v1/mailboxes/{id}/resume` la riporta `Active`. Il backfill annullato riprende dalla pagina salvata |
+| D20 | Posta inviata | La posta inviata (label Gmail `SENT`, oppure mittente uguale all'indirizzo della casella) si **segnala**, non si esclude: `Message.IsSent`. Conteggi, classifiche e totali restano invariati. I filtri lavorano anche la posta inviata: se un filtro chiede gli allegati delle mail inviate, li salva |
 
 ---
 
@@ -80,7 +81,7 @@ flowchart LR
 | T2 | Cartelle | In Gmail le "cartelle" sono **label**. Si legge per messaggio (`messageId`), non per cartella: nessun doppio conteggio. Le label si salvano come attributo del messaggio |
 | T3 | Checkpoint | Backfill: `pageToken` salvato su `Mailbox.BackfillPageToken` dopo ogni pagina. L'`historyId` del profilo si cattura **all'inizio** del backfill e fa da base all'incrementale. Incrementale: `users.history.list` da `HistoryId`; HTTP 404 (history scaduta) → scansione completa idempotente |
 | T4 | Idempotenza | UNIQUE `(MailboxId, GmailMessageId)`. Insert idempotenti: errori 2601/2627 = già presente. Mai chiave sul `Message-ID` dell'header |
-| T5 | Statistiche | Viste SQL `vw_SenderStats` e `vw_SenderMonthlyStats`, colonna calcolata persistita `YearMonth`, indice coprente. Panoramica paginata per indirizzo (`/stats/senders/overview`) e conteggi per anno (`/stats/years`) letti da `Message`, con l'indice `(MailboxId, SenderAddress, ReceivedAtUtc) INCLUDE (Subject)`. `ReceivedAtUtc` viene da `internalDate` di Gmail; se manca, dall'header `Date` o dall'ora di lettura |
+| T5 | Statistiche | Viste SQL `vw_SenderStats` e `vw_SenderMonthlyStats`, colonna calcolata persistita `YearMonth`, indice coprente. Panoramica paginata per indirizzo (`/stats/senders/overview`) e conteggi per anno (`/stats/years`) letti da `Message`, con l'indice `(MailboxId, SenderAddress, ReceivedAtUtc) INCLUDE (Subject, IsSent)`. `ReceivedAtUtc` viene da `internalDate` di Gmail; se manca, dall'header `Date` o dall'ora di lettura |
 | T6 | Segreti | Refresh token cifrati con ASP.NET Core Data Protection. Key ring su percorso configurabile (volume), fuori dal DB. Client secret da configurazione locale o ambiente. Token mai nei log applicativi |
 | T7 | Scheduler | Quartz.NET con cron da configurazione. Job schedulato con `[DisallowConcurrentExecution]`. Giro manuale e riapplica con `TriggerJob` immediato su un job separato |
 | T8 | Lock | Un giro alla volta per casella con `sp_getapplock`: risorsa `mailbox:<id>`, timeout 0, owner `Session` su una connessione dedicata aperta per tutto il giro. Casella occupata: il giro schedulato la salta (log), la richiesta manuale riceve 409 |
@@ -293,7 +294,7 @@ sequenceDiagram
 | Tabella | Colonne chiave | Vincoli e indici |
 |---------|----------------|------------------|
 | `Mailbox` | EmailAddress, EncryptedRefreshToken, HistoryId (`decimal(20,0)`), BackfillPageToken, BackfillCompleted, MessagesTotal (totale Gmail da `getProfile`, letto all'avvio e alla ripresa del backfill: denominatore dell'avanzamento), Status (Active / TokenRevoked / Disabled = in pausa / Deleted), LastRunAtUtc, LastError, LastErrorRunId (giro che ha registrato `LastError`) | UNIQUE(EmailAddress) |
-| `Message` | MailboxId, GmailMessageId, ThreadId, SenderAddress (minuscolo), SenderName, Subject, ReceivedAtUtc, `YearMonth` (`int` calcolato persistito: `YEAR*100+MONTH`, es. 202610), Labels, HasAttachments | UNIQUE(MailboxId, GmailMessageId); IX(MailboxId, SenderAddress, YearMonth) |
+| `Message` | MailboxId, GmailMessageId, ThreadId, SenderAddress (minuscolo), SenderName, Subject, ReceivedAtUtc, `YearMonth` (`int` calcolato persistito: `YEAR*100+MONTH`, es. 202610), Labels, HasAttachments, IsSent (posta inviata: label `SENT` o mittente = indirizzo della casella, calcolato in ingestione dalle label complete; D20) | UNIQUE(MailboxId, GmailMessageId); IX(MailboxId, SenderAddress, YearMonth) |
 | `Filter` | MailboxId (null = tutte), Name, SenderAddress, SubjectMatchType (null / StartsWith / Contains / Regex), SubjectValue, AttachmentSubfolder, IsEnabled | CHECK: SubjectMatchType e SubjectValue entrambi valorizzati o entrambi null; IX(SenderAddress) |
 | `FilterProcess` | FilterId, ProcessType (AttachmentExtraction / Alert) | PK(FilterId, ProcessType) |
 | `Run` | MailboxId, Trigger (Scheduled / Manual / Reapply), FilterId e RequestedProcesses (solo Reapply), Status (Running / Completed / Failed / Skipped / Cancelled), StartedAtUtc, EndedAtUtc, MessagesRead, MessagesProcessed, ErrorCount, ErrorSummary | IX(MailboxId, StartedAtUtc) |
@@ -347,4 +348,4 @@ erDiagram
 | `HasAttachments` dedotto dal tipo MIME `multipart/mixed` | con `format=metadata` Gmail non elenca le parti: alcune mail con allegati inline possono risultare senza | nessuno necessario: l'estrazione legge sempre le parti reali (`format=full`) |
 | Riapplica e giro manuale verificano la casella e poi la affidano allo scheduler | in una finestra brevissima un altro giro può prendere il lock prima | il giro parte e chiude come `Skipped`, senza effetti sui dati |
 
-*Revisione v1.8 — 2026-10-10 21:40 — claude-opus-5-5*
+*Revisione v1.9 — 2026-10-11 17:25 — claude-opus-5-5*

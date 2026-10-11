@@ -293,6 +293,12 @@ namespace dr_mailroom_core.Infrastructure.Mailroom.Migrations
                         .HasColumnType("bit")
                         .HasColumnName("HasAttachments");
 
+                    b.Property<bool>("IsSent")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false)
+                        .HasColumnName("IsSent");
+
                     b.Property<string>("Labels")
                         .HasMaxLength(1000)
                         .HasColumnType("nvarchar(1000)")
@@ -341,7 +347,7 @@ namespace dr_mailroom_core.Infrastructure.Mailroom.Migrations
 
                     b.HasIndex("MailboxId", "SenderAddress", "ReceivedAtUtc");
 
-                    SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("MailboxId", "SenderAddress", "ReceivedAtUtc"), new[] { "Subject" });
+                    SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("MailboxId", "SenderAddress", "ReceivedAtUtc"), new[] { "Subject", "IsSent" });
 
                     b.HasIndex("MailboxId", "SenderAddress", "YearMonth");
 

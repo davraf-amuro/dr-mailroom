@@ -73,6 +73,21 @@ public class MailboxIngestionServiceTests
     }
 
     [Fact]
+    public async Task Backfill_MarksSentMail_ByLabelOrMailboxAddressAsync()
+    {
+        await SeedAsync();
+        var session = TwoPageMailbox();
+        session.LabelsById["a"] = ["SENT", "IMPORTANT"];
+        session.SenderById["b"] = "ME@example.com";
+
+        await IngestAsync(session);
+
+        await using var db = NewContext();
+        var sent = await db.Messages.OrderBy(m => m.GmailMessageId).Select(m => m.IsSent).ToListAsync();
+        Assert.Equal([true, true, false], sent);
+    }
+
+    [Fact]
     public async Task Backfill_IndexesAllPages_SavesHistoryIdCapturedAtStartAsync()
     {
         await SeedAsync();

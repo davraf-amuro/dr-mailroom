@@ -183,7 +183,8 @@ La cancellazione usa `DELETE /api/v1/filters/{id}`, con conferma. La 409 ha lo s
 
 Il pulsante **"Prova sulle mail già lette"** è nel form. Chiama `POST /api/v1/filters/preview` con `senderAddress`, `mailboxId`, `subjectMatchType`, `subjectValue`.
 
-- La risposta `FilterPreviewDto` contiene `totalMatches` e le 50 mail più recenti (`MessageSummaryDto`: mittente, oggetto, data, allegati).
+- La risposta `FilterPreviewDto` contiene `totalMatches` e le 50 mail più recenti (`MessageSummaryDto`: mittente, oggetto, data, allegati, posta inviata).
+- Ogni riga con `isSent = true` ha il badge **"Posta inviata"** (testo e icona). Il filtro lavora comunque anche quelle mail (D20).
 - Non scrive nulla e non chiama Gmail: lavora solo sulle mail già indicizzate.
 - Ogni riga con `hasAttachments = true` ha un link **"Allegati salvati"**, che apre `GET /api/v1/messages/{id}/attachments` (404 = nessun allegato salvato).
 - Il risultato va in una regione `aria-live="polite"`: "12 mail corrispondono".
@@ -261,6 +262,16 @@ Per i widget compatti (per esempio "ultimi giri" in home) c'è `GET /api/v1/runs
 Le statistiche contano **tutte** le mail lette, non solo quelle filtrate (D9). Restano disponibili anche per le caselle eliminate.
 
 Il mittente è **sempre il suo indirizzo email**; il nome visualizzato è solo testo secondario. Contratto completo degli endpoint: [endpoint-stats.md](endpoint-stats.md).
+
+### Posta inviata
+
+La posta inviata (`sentCount` della panoramica) si **segnala**, non si esclude: conteggi, classifica e totali la includono (D20). Il segno non si affida mai al solo colore.
+
+| Dove | Segno |
+|---|---|
+| Tabella dei mittenti, classifica come tabella, dialog "Per anno" | Badge con icona: "Posta inviata" se lo sono tutte le mail del mittente, "N inviate" se solo una parte |
+| Classifica (grafico) | Barra con colore neutro e tratteggio. Su desktop il valore diventa "1.128 · Posta inviata"; su schermi stretti resta solo il numero, per non schiacciare le barre |
+| Cella eroe | Se il mittente più attivo è la propria posta inviata: "Il mittente più attivo è la tua posta inviata, x@y.it: 1.128 mail (3%)" |
 
 ### Casella e anno
 
@@ -370,4 +381,4 @@ Sono tutti i path esposti dalla Fase 15 (`/openapi/v1.json`).
 - Codice: `src/dr-mailroom-api/Endpoints/`, `src/dr-mailroom-api/Dto/`, `src/dr-mailroom-api/Validators/`, `src/dr-mailroom-api/Services/MailboxService.cs`
 - Architettura: [architettura.md](architettura.md)
 
-*Revisione v1.3 — 2026-10-10 21:10 — claude-opus-5-5*
+*Revisione v1.4 — 2026-10-11 17:25 — claude-opus-5-5*

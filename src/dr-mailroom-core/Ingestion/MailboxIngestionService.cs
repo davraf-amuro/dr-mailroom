@@ -110,7 +110,7 @@ public class MailboxIngestionService(
         {
             // Chiamo Gmail: pagina successiva dello storico
             var page = await session.ListMessageIdsPageAsync(mailbox.BackfillPageToken, cancellationToken);
-            var candidates = await FetchMessagesAsync(session, mailbox.Id, page.MessageIds, cancellationToken);
+            var candidates = await FetchMessagesAsync(session, mailbox, page.MessageIds, cancellationToken);
 
             read += page.MessageIds.Count;
             run.MessagesRead += page.MessageIds.Count;
@@ -149,7 +149,7 @@ public class MailboxIngestionService(
             return await FullScanAsync(session, mailbox, run, newMessages, cancellationToken);
         }
 
-        var candidates = await FetchMessagesAsync(session, mailbox.Id, changes.AddedMessageIds, cancellationToken);
+        var candidates = await FetchMessagesAsync(session, mailbox, changes.AddedMessageIds, cancellationToken);
         run.MessagesRead += changes.AddedMessageIds.Count;
         mailbox.HistoryId = changes.LatestHistoryId;
 
@@ -178,7 +178,7 @@ public class MailboxIngestionService(
         {
             // Chiamo Gmail: pagina della scansione completa
             var page = await session.ListMessageIdsPageAsync(pageToken, cancellationToken);
-            var candidates = await FetchMessagesAsync(session, mailbox.Id, page.MessageIds, cancellationToken);
+            var candidates = await FetchMessagesAsync(session, mailbox, page.MessageIds, cancellationToken);
 
             read += page.MessageIds.Count;
             run.MessagesRead += page.MessageIds.Count;
@@ -201,14 +201,14 @@ public class MailboxIngestionService(
 
     /// <summary>Legge i metadati una mail per volta: niente chiamate concorrenti verso Gmail, la quota è per utente.</summary>
     private static async Task<IReadOnlyList<Message>> FetchMessagesAsync(
-        IGmailSession session, int mailboxId, IReadOnlyList<string> gmailIds, CancellationToken cancellationToken)
+        IGmailSession session, Mailbox mailbox, IReadOnlyList<string> gmailIds, CancellationToken cancellationToken)
     {
         var messages = new List<Message>(gmailIds.Count);
         foreach (var gmailId in gmailIds)
         {
             // Chiamo Gmail: metadati del messaggio
             var metadata = await session.GetMetadataAsync(gmailId, cancellationToken);
-            messages.Add(ToEntity(mailboxId, metadata));
+            messages.Add(ToEntity(mailbox, metadata));
         }
 
         return messages;
@@ -229,9 +229,9 @@ public class MailboxIngestionService(
     }
 
     /// <summary>Converte i metadati Gmail nell'entità, adattando i testi alle lunghezze delle colonne.</summary>
-    private static Message ToEntity(int mailboxId, GmailMessageMetadata metadata) => new()
+    private static Message ToEntity(Mailbox mailbox, GmailMessageMetadata metadata) => new()
     {
-        MailboxId = mailboxId,
+        MailboxId = mailbox.Id,
         GmailMessageId = metadata.GmailMessageId,
         ThreadId = metadata.ThreadId,
         SenderAddress = TextLimits.Truncate(metadata.SenderAddress, ColumnLengths.EmailAddress)!,
@@ -240,5 +240,11 @@ public class MailboxIngestionService(
         ReceivedAtUtc = metadata.ReceivedAtUtc,
         Labels = TextLimits.Truncate(string.Join(',', metadata.LabelIds), ColumnLengths.Labels),
         HasAttachments = metadata.HasAttachments,
+        IsSent = IsSent(mailbox, metadata),
     };
+
+    /// <summary>Posta inviata: label SENT (copre gli alias send-as) o mittente uguale all'indirizzo della casella. Dalle label complete, prima del troncamento.</summary>
+    private static bool IsSent(Mailbox mailbox, GmailMessageMetadata metadata) =>
+        metadata.LabelIds.Contains(GmailConstants.SentLabel)
+        || string.Equals(metadata.SenderAddress, mailbox.EmailAddress, StringComparison.OrdinalIgnoreCase);
 }

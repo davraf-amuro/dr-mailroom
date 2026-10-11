@@ -345,7 +345,7 @@ public sealed class EndpointTests : IClassFixture<MailroomApiFactory>
         {
             db.Messages.AddRange(
                 new Message { MailboxId = mailboxId, GmailMessageId = "ov-1", ThreadId = "t", SenderAddress = "a@x.it", Subject = "vecchia", ReceivedAtUtc = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
-                new Message { MailboxId = mailboxId, GmailMessageId = "ov-2", ThreadId = "t", SenderAddress = "a@x.it", Subject = "recente", ReceivedAtUtc = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+                new Message { MailboxId = mailboxId, GmailMessageId = "ov-2", ThreadId = "t", SenderAddress = "a@x.it", Subject = "recente", ReceivedAtUtc = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), IsSent = true },
                 new Message { MailboxId = mailboxId, GmailMessageId = "ov-3", ThreadId = "t", SenderAddress = "b@x.it", Subject = "b", ReceivedAtUtc = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc) });
             await db.SaveChangesAsync();
         }
@@ -359,6 +359,7 @@ public sealed class EndpointTests : IClassFixture<MailroomApiFactory>
         Assert.Equal("a@x.it", row.GetProperty("senderAddress").GetString());
         Assert.Equal("vecchia", row.GetProperty("firstSubject").GetString());
         Assert.Equal("recente", row.GetProperty("lastSubject").GetString());
+        Assert.Equal(1, row.GetProperty("sentCount").GetInt32());
         Assert.Equal([2026, 2024], years.EnumerateArray().Select(y => y.GetProperty("year").GetInt32()));
     }
 

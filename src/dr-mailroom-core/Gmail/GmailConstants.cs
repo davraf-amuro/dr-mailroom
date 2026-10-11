@@ -14,6 +14,9 @@ public static class GmailConstants
     public const string DateHeader = "Date";
     public const string SpamLabel = "SPAM";
     public const string TrashLabel = "TRASH";
+
+    /// <summary>Label della posta inviata dall'account (anche da alias send-as).</summary>
+    public const string SentLabel = "SENT";
     public const string MultipartMixed = "multipart/mixed";
 
     /// <summary>Massimo consentito da users.messages.list per pagina.</summary>

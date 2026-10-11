@@ -72,6 +72,26 @@ public class StatsProviderTests
     }
 
     [Fact]
+    public async Task Overview_CountsSentMail_WithoutExcludingItAsync()
+    {
+        var sentByMe = Mail("uno@example.com", At(2026, 1, 1), "inviata");
+        sentByMe.IsSent = true;
+        var sentByAlias = Mail("alias@x.it", At(2026, 2, 1), "inviata da alias");
+        sentByAlias.IsSent = true;
+        await SeedAsync(
+            sentByMe,
+            sentByAlias,
+            Mail("alias@x.it", At(2026, 3, 1), "ricevuta"),
+            Mail("b@x.it", At(2026, 4, 1), "ricevuta"));
+
+        var result = await OverviewAsync(sortBy: SenderOverviewSortBy.SenderAddress, sortDir: SortDirection.Asc);
+
+        Assert.Equal(3, result.TotalCount);
+        Assert.Equal([("alias@x.it", 2, 1), ("b@x.it", 1, 0), ("uno@example.com", 1, 1)],
+            result.Items.Select(r => (r.SenderAddress, r.MailCount, r.SentCount)));
+    }
+
+    [Fact]
     public async Task Overview_SameReceivedAt_TieBrokenOnIdAsync()
     {
         var when = At(2026, 1, 1);
@@ -185,6 +205,7 @@ public class StatsProviderTests
         Assert.Contains("GROUP BY", sql, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("OFFSET", sql, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("[Subject]", sql, StringComparison.Ordinal);
+        Assert.Contains("[IsSent]", sql, StringComparison.Ordinal);
         Assert.Contains("LIKE", sql, StringComparison.OrdinalIgnoreCase);
     }
 }

@@ -44,5 +44,9 @@ public class Message
     [Column("HasAttachments")]
     public bool HasAttachments { get; set; }
 
+    /// <summary>Posta inviata: label SENT oppure mittente uguale all'indirizzo della casella. Solo segnalazione, non esclude nulla.</summary>
+    [Column("IsSent")]
+    public bool IsSent { get; set; }
+
     public Mailbox? Mailbox { get; set; }
 }

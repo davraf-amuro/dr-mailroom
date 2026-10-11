@@ -29,7 +29,7 @@ Per uno sviluppatore senior che entra nel progetto. Spiega cosa ha di specifico 
 | Serilog | 10.0.0 | Log strutturati con `ThreadId` e `TaskId` |
 | xUnit + EF InMemory + WebApplicationFactory | 2.9.3 / 10.0.12 | Test senza Gmail e senza SQL Server |
 
-Le decisioni sono numerate (D1–D19, T1–T12, C1–C12) e spiegate in [architettura.md](architettura.md). Nel codice i commenti le citano, per esempio `(D18)`.
+Le decisioni sono numerate (D1–D20, T1–T12, C1–C12) e spiegate in [architettura.md](architettura.md). Nel codice i commenti le citano, per esempio `(D18)`.
 
 ---
 
@@ -180,4 +180,4 @@ Regola completa: `.github/instructions/sensitive-data.instructions.md`. In sinte
 Per i dubbi non coperti da questi file: Davide Raffagli.
 
 ---
-*Revisione v1.0 — 2026-10-08 23:03 — claude-opus-5-5*
+*Revisione v1.1 — 2026-10-11 17:25 — claude-opus-5-5*

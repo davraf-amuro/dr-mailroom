@@ -89,6 +89,10 @@ flowchart LR
     G --> H[200 OK]
 ```
 
+Ogni mail dell'anteprima (`MessageSummaryDto`) ha questi campi: `id`, `mailboxId`, `senderAddress`, `subject`, `receivedAtUtc`, `hasAttachments` e `isSent`.
+
+`isSent` vale `true` per la posta inviata (label `SENT` o mittente uguale all'indirizzo della casella). Serve solo a segnalarla: un filtro lavora anche la posta inviata, anteprima e riapplica comprese (D20).
+
 ### POST /api/v1/filters/{id}/reapply
 
 ```mermaid
@@ -111,4 +115,4 @@ Il giro parte in background. Il suo avanzamento si legge con `GET /api/v1/runs/{
 Per i casi d'uso fare riferimento a `src/dr-mailroom-api/dr-mailroom-api.http`.
 
 ---
-*Revisione v1.1 — 2026-10-08 23:03 — claude-opus-5-5*
+*Revisione v1.2 — 2026-10-11 17:25 — claude-opus-5-5*

@@ -40,6 +40,12 @@ public sealed class FakeGmailSession : IGmailSession
 
     public List<ulong> RequestedHistoryIds { get; } = [];
 
+    /// <summary>Mittente per id messaggio; assente = fornitore@example.com.</summary>
+    public Dictionary<string, string> SenderById { get; } = [];
+
+    /// <summary>Label per id messaggio; assente = solo INBOX.</summary>
+    public Dictionary<string, string[]> LabelsById { get; } = [];
+
     public Task<GmailProfile> GetProfileAsync(CancellationToken cancellationToken) =>
         FailEverythingWith is null ? Task.FromResult(new GmailProfile(ProfileHistoryId, ProfileMessagesTotal)) : throw FailEverythingWith;
 
@@ -97,8 +103,9 @@ public sealed class FakeGmailSession : IGmailSession
             }
 
             return new GmailMessageMetadata(
-                gmailMessageId, "t-" + gmailMessageId, "fornitore@example.com", "Fornitore", "Oggetto " + gmailMessageId,
-                new DateTime(2026, 10, 1, 8, 0, 0, DateTimeKind.Utc), ["INBOX"], false);
+                gmailMessageId, "t-" + gmailMessageId, SenderById.GetValueOrDefault(gmailMessageId, "fornitore@example.com"), "Fornitore",
+                "Oggetto " + gmailMessageId, new DateTime(2026, 10, 1, 8, 0, 0, DateTimeKind.Utc),
+                LabelsById.GetValueOrDefault(gmailMessageId, ["INBOX"]), false);
         }
         finally
         {
