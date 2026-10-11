@@ -1,6 +1,6 @@
 # Piano: "Inizia con" ignora emoji/simboli iniziali + testo oggetto residuo nel costruttore
 Data: 2026-10-10
-Stato: IN CORSO
+Stato: COMPLETATO
 
 > Bugfix puntuale approvato esplicitamente dall'utente in chat ("procedi con A"), eseguito in parallelo al piano `2026-10-08-dr-mailroom-fe` (IN CORSO, fase 14): perimetro disgiunto.
 
@@ -72,4 +72,6 @@ Stato: IN CORSO
 ## Esito
 - BE: 157 test verdi (1 skip preesistente), `dotnet format` pulito sui file toccati
 - FE: 209 test verdi, `lint:check` e `type-check` puliti, Prettier applicato al nuovo spec
-- In attesa: verifica a freddo (`/dr-verify-plan`) prima di `Stato: COMPLETATO`
+- 2026-10-11 — verifica a freddo (`/dr-verify-plan`, subagente indipendente): 5 file CORRISPONDONO, 3 criteri SODDISFATTI (BE 173 test, FE 232 test, lint e type-check puliti; commit `cc8da11` e FE `02e92ea` solo su file in Scope). Footer di `architettura.md` ora v1.9 per una revisione successiva
+
+Piano filtro-oggetto-emoji verificato. Tutti i criteri soddisfatti.
