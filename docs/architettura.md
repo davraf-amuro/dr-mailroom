@@ -22,7 +22,7 @@ flowchart LR
     sql[("SQL Server<br/>DB dr-mailroom")]
     fs[("File system allegati<br/>Attachments.RootPath")]
     keys[("Key ring<br/>Data Protection")]
-    fe["dr-mailroom-fe<br/>SPA Vue 3 (futuro)"]
+    fe["dr-mailroom-fe<br/>SPA Vue 3 su nginx"]
     ext["Software esterno<br/>notifiche all'utente"]
 
     core -- "OAuth2, lettura" --> gmail
@@ -41,7 +41,7 @@ flowchart LR
 | SQL Server | Istanza esistente; contiene caselle, messaggi indicizzati, filtri, giri, allerte |
 | File system allegati | Cartella radice configurabile, montata come volume nel container |
 | Key ring Data Protection | Chiavi che cifrano i refresh token; su volume, **fuori** dal database |
-| `dr-mailroom-fe` | SPA futura, in un proprio container nginx |
+| `dr-mailroom-fe` | SPA Vue 3 in un proprio container nginx: repo [dr-mailroom-fe](https://github.com/davraf-amuro/dr-mailroom-fe), direzione visiva in [design.md](../.ai/plans/2026-10-08-dr-mailroom-fe/design.md) |
 | Software esterno | Legge le allerte non consumate e avvisa l'utente; fuori scope |
 
 ---
@@ -59,7 +59,7 @@ flowchart LR
 | D7 | Match mittente | Uguaglianza case-insensitive sull'indirizzo |
 | D8 | Match oggetto | Un solo tipo per filtro: `StartsWith`, `Contains` o `Regex`. I primi due case-insensitive. `StartsWith` ignora emoji, simboli e spazi in testa all'oggetto (es. "📄Riepilogo …" inizia con "Riepilogo"), non la punteggiatura. `Regex` con `IgnoreCase \| CultureInvariant` e timeout configurabile: timeout → nessun match + warning nel log |
 | D9 | Statistiche | Contano **tutte** le mail lette, non solo quelle filtrate |
-| D10 | Frontend | Niente Blazor né Razor. Il backend espone solo REST JSON. Il frontend `dr-mailroom-fe` è una SPA Vue 3 + Vite + TypeScript separata, servita da nginx. Qui: solo specifica |
+| D10 | Frontend | Niente Blazor né Razor. Il backend espone solo REST JSON. Il frontend `dr-mailroom-fe` è una SPA Vue 3 + Vite + TypeScript separata, servita da nginx, nel repo [dr-mailroom-fe](https://github.com/davraf-amuro/dr-mailroom-fe). Qui: la specifica ([frontend-specifiche.md](frontend-specifiche.md)) |
 | D11 | Giro manuale | `POST /api/v1/runs` avvia **subito** il giro. Casella con un giro già attivo → **409**. Nessuna coda nel DB |
 | D12 | Backfill e filtri | Il backfill **solo indicizza** (statistiche): nessun processo sullo storico. I filtri valgono sulle mail nuove |
 | D13 | Riapplica | `POST /api/v1/filters/{id}/reapply` lavora le mail **già indicizzate** che corrispondono al filtro, anche con un **sottoinsieme dei processi** (es. solo allegati, niente allerte sullo storico). Idempotente |
@@ -348,4 +348,4 @@ erDiagram
 | `HasAttachments` dedotto dal tipo MIME `multipart/mixed` | con `format=metadata` Gmail non elenca le parti: alcune mail con allegati inline possono risultare senza | nessuno necessario: l'estrazione legge sempre le parti reali (`format=full`) |
 | Riapplica e giro manuale verificano la casella e poi la affidano allo scheduler | in una finestra brevissima un altro giro può prendere il lock prima | il giro parte e chiude come `Skipped`, senza effetti sui dati |
 
-*Revisione v1.9 — 2026-10-11 17:25 — claude-opus-5-5*
+*Revisione v2.0 — 2026-10-11 21:47 — claude-opus-5-5*

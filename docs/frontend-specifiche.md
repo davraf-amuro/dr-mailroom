@@ -1,8 +1,8 @@
 # Specifica del frontend dr-mailroom-fe
 
-Questo documento descrive il frontend di dr-mailroom: **cosa deve fare**, non come è implementato. Il frontend è un progetto separato e non esiste ancora (D10).
+Questo documento descrive il frontend di dr-mailroom: **cosa deve fare**, non come è implementato. Il frontend è un progetto separato (D10), nel repo [dr-mailroom-fe](https://github.com/davraf-amuro/dr-mailroom-fe); la direzione visiva è in [design.md](../.ai/plans/2026-10-08-dr-mailroom-fe/design.md).
 
-Serve a chi svilupperà la SPA: per ogni vista elenca dati, azioni, endpoint e casi d'errore.
+Serve a chi sviluppa la SPA: per ogni vista elenca dati, azioni, endpoint e casi d'errore.
 
 ---
 
@@ -12,7 +12,7 @@ Serve a chi svilupperà la SPA: per ogni vista elenca dati, azioni, endpoint e c
 |---|---|
 | Tipo | SPA, nessun rendering lato server (niente Blazor né Razor) |
 | Tecnologia | Vue 3 + Vite + TypeScript, router e Pinia |
-| Repository | `dr-mailroom-fe`, separato dal backend; pacchetto di linee guida `dr-fe` |
+| Repository | [dr-mailroom-fe](https://github.com/davraf-amuro/dr-mailroom-fe), separato dal backend; pacchetto di linee guida `dr-fe` |
 | Rilascio | container nginx dedicato, separato da `dr-mailroom-api` |
 | Indirizzo locale | `http://localhost:5173` (default di `Mailroom:Frontend:BaseUrl`) |
 | Backend | `http://localhost:5180`, solo REST JSON sotto `/api/v1` |
@@ -381,4 +381,4 @@ Sono tutti i path esposti dalla Fase 15 (`/openapi/v1.json`).
 - Codice: `src/dr-mailroom-api/Endpoints/`, `src/dr-mailroom-api/Dto/`, `src/dr-mailroom-api/Validators/`, `src/dr-mailroom-api/Services/MailboxService.cs`
 - Architettura: [architettura.md](architettura.md)
 
-*Revisione v1.4 — 2026-10-11 17:25 — claude-opus-5-5*
+*Revisione v1.5 — 2026-10-11 21:47 — claude-opus-5-5*
