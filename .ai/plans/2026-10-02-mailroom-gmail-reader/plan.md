@@ -1,7 +1,7 @@
 # Piano: dr-mailroom — servizio C# di lettura Gmail, filtri, processi e statistiche
 Brief: [20261001-01.md](../../../briefs/20261001-01.md)
 Data: 2026-10-02
-Stato: INTERROTTO
+Stato: CHIUSO — 2026-10-11, per decisione dell'utente con la Fase 19 parziale (vedi "Chiusura")
 Sostituisce: [2026-10-02-dr-mailroom-mvp](../2026-10-02-dr-mailroom-mvp/plan.md) (SUPERATO)
 
 > **Nota 2026-10-08** — Da rivedere quando il frontend ([2026-10-08-dr-mailroom-fe](../2026-10-08-dr-mailroom-fe/plan.md)) è pronto: verificare cosa resta aperto (criteri di verifica finali non spuntati) e decidere se completare, chiudere o archiviare. Fino ad allora non blocca altri piani.
@@ -351,6 +351,9 @@ Viste: `vw_SenderStats(MailboxId, SenderAddress, MailCount)`, `vw_SenderMonthlyS
 - [x] `docs/architettura.md`, `docs/frontend-specifiche.md`, `docs/setup-google-oauth.md`, `README.md` presenti
 - [x] `docker compose up` funzionante con volumi persistenti
 - [ ] Verifica a freddo con `/dr-verify-plan`
+
+## Chiusura
+- **2026-10-11**: piano chiuso dall'utente dopo il completamento del frontend ([2026-10-08-dr-mailroom-fe](../2026-10-08-dr-mailroom-fe/plan.md)), come previsto dalla nota del 2026-10-08. La Fase 19 resta parziale: le prove funzionali non spuntate (backfill completo e giro incrementale, filtro di test con allerta e allegato, riapplica, doppio avvio → 409, `HistoryId` scaduto) e `/dr-verify-plan` non sono state eseguite in questo piano. Il servizio è poi stato esteso da piani successivi (quota Gmail, stop del worker, avanzamento backfill, posta inviata, analisi per mittente), tutti COMPLETATI
 
 ## Revisioni
 ### R1 — 2026-10-02: fusione con il piano MVP

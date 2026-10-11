@@ -1,6 +1,6 @@
 # Piano: frontend dr-mailroom-fe (SPA Vue 3, direzione "Hangar Federale")
 Data: 2026-10-08
-Stato: IN CORSO
+Stato: COMPLETATO — 2026-10-11
 Revisione: v1.3 del 2026-10-10 — Fasi 11 e 13 aggiornate dal brief 20261009-01; v1.1 del 2026-10-08 — allineato alla specifica v1.1 (pausa casella, annullamento giri), vedi "Registro revisioni"
 
 Allegati: [design.md](design.md) — direzione visiva, token, lessico, motion · [handoff.md](handoff.md) — come riprendere in una nuova sessione.
@@ -33,30 +33,30 @@ Schema di autenticazione: deciso lato API — header `x-api-key` (specifica, sez
 Radice: `E:\Davide\Progetti\dr-mailroom-workspace\dr-mailroom-fe\` (nuovo repo, accanto a `dr-mailroom`). Struttura conforme a `frontend-organization.instructions.md` Regola 3 (`dr-fe`).
 
 ### File da creare / modificare
-- [ ] `dr-mailroom-fe/` — scaffold create-vue (file generati)
-- [ ] `dr-mailroom-fe/package.json` — dipendenze, script `gen:api`, `lint:check`, `format:check`
-- [ ] `dr-mailroom-fe/vite.config.ts` — plugin Tailwind, porta 5173 fissa
-- [ ] `dr-mailroom-fe/public/config.example.json` — modello della configurazione runtime
-- [ ] `dr-mailroom-fe/.gitignore` — esclude `public/config.json`
-- [ ] `dr-mailroom-fe/src/main.ts` — carica la configurazione runtime prima del mount
-- [ ] `dr-mailroom-fe/src/App.vue` — guscio applicativo
-- [ ] `dr-mailroom-fe/src/assets/styles/tokens.css`, `main.css` — token e base
-- [ ] `dr-mailroom-fe/src/services/api/schema.d.ts` — generato
-- [ ] `dr-mailroom-fe/src/services/api/client.ts`, `problem.ts`, `runtimeConfig.ts`
-- [ ] `dr-mailroom-fe/src/services/{status,mailboxes,filters,runs,stats,messages}Service.ts`
-- [ ] `dr-mailroom-fe/src/stores/{ui,status,mailboxes,filters,runs,stats}.ts`
-- [ ] `dr-mailroom-fe/src/router/index.ts`, `src/router/routes/{mailboxes,filters,runs,stats}.ts`
-- [ ] `dr-mailroom-fe/src/components/shared/*` — generici (vedi Fase 10)
-- [ ] `dr-mailroom-fe/src/components/{shell,status,mailboxes,filters,runs,stats}/*`
-- [ ] `dr-mailroom-fe/src/composables/shared/*`, `src/composables/{mailboxes,filters,runs,stats}/*`
-- [ ] `dr-mailroom-fe/src/views/{Mailboxes,Filters,Runs,Stats,NotFound}View.vue`
-- [ ] `dr-mailroom-fe/src/utils/{formatDate,formatYearMonth,formatSerial}.ts`
-- [ ] `dr-mailroom-fe/src/**/__tests__/*`, `e2e/*` — test
-- [ ] `dr-mailroom-fe/Dockerfile`, `nginx/default.conf`, `.dockerignore`
-- [ ] `dr-mailroom-fe/.vscode/launch.json`, `tasks.json` — via `/dr-create-launch-profiles`
-- [ ] `dr-mailroom-fe/README.md` — via `/dr-professor`
-- [ ] `E:\Davide\Progetti\dr-mailroom-workspace\dr-mailroom.code-workspace` — compound di debug API + FE
-- [ ] `dr-mailroom/docs/architettura.md`, `dr-mailroom/docs/frontend-specifiche.md` — da "futuro" a "esistente", link al repo FE e al design
+- [x] `dr-mailroom-fe/` — scaffold create-vue (file generati)
+- [x] `dr-mailroom-fe/package.json` — dipendenze, script `gen:api`, `lint:check`, `format:check`
+- [x] `dr-mailroom-fe/vite.config.ts` — plugin Tailwind, porta 5173 fissa
+- [x] `dr-mailroom-fe/public/config.example.json` — modello della configurazione runtime
+- [x] `dr-mailroom-fe/.gitignore` — esclude `public/config.json`
+- [x] `dr-mailroom-fe/src/main.ts` — carica la configurazione runtime prima del mount
+- [x] `dr-mailroom-fe/src/App.vue` — guscio applicativo
+- [x] `dr-mailroom-fe/src/assets/styles/tokens.css`, `main.css` — token e base
+- [x] `dr-mailroom-fe/src/services/api/schema.d.ts` — generato
+- [x] `dr-mailroom-fe/src/services/api/client.ts`, `problem.ts`, `runtimeConfig.ts`
+- [x] `dr-mailroom-fe/src/services/{status,mailboxes,filters,runs,stats,messages}Service.ts`
+- [x] `dr-mailroom-fe/src/stores/{ui,status,mailboxes,filters,runs,stats}.ts`
+- [x] `dr-mailroom-fe/src/router/index.ts`, `src/router/routes/{mailboxes,filters,runs,stats}.ts`
+- [x] `dr-mailroom-fe/src/components/shared/*` — generici (vedi Fase 10)
+- [x] `dr-mailroom-fe/src/components/{shell,status,mailboxes,filters,runs,stats}/*`
+- [x] `dr-mailroom-fe/src/composables/shared/*`, `src/composables/{mailboxes,filters,runs,stats}/*`
+- [x] `dr-mailroom-fe/src/views/{Mailboxes,Filters,Runs,Stats,NotFound}View.vue`
+- [x] `dr-mailroom-fe/src/utils/{formatDate,formatYearMonth,formatSerial}.ts` — `formatYearMonth` non creato (viste mensili tolte in v1.3)
+- [x] `dr-mailroom-fe/src/**/__tests__/*`, `e2e/*` — test
+- [x] `dr-mailroom-fe/Dockerfile`, `nginx/default.conf`, `.dockerignore`
+- [x] `dr-mailroom-fe/.vscode/launch.json`, `tasks.json` — via `/dr-create-launch-profiles`
+- [x] `dr-mailroom-fe/README.md` — via `/dr-professor`
+- [x] `E:\Davide\Progetti\dr-mailroom-workspace\dr-mailroom.code-workspace` — compound di debug API + FE
+- [x] `dr-mailroom/docs/architettura.md`, `dr-mailroom/docs/frontend-specifiche.md` — da "futuro" a "esistente", link al repo FE e al design
 
 ### Perimetro negativo
 - Non toccherò: codice del backend (`dr-mailroom/src/**`), configurazione CORS, schema DB, piani del backend (`mailroom-gmail-reader` `INTERROTTO`, `stop-worker-endpoint` `COMPLETATO`).
@@ -223,7 +223,7 @@ Radice: `E:\Davide\Progetti\dr-mailroom-workspace\dr-mailroom-fe\` (nuovo repo, 
 - **Su divergenza**: STOP — scrivi `⚠️ Divergenza Fase 13: <cosa>` in plan.md, non procedere
 
 ### Fase 14: Test end-to-end
-- **Stato**: [ ]
+- **Stato**: [x] — 2026-10-11, commit `ed5ea18`. `e2e/smoke.spec.ts` con 4 scenari su API simulata (`e2e/support/mockApi.ts`: `config.json` e `http://api.test/**` via `page.route`, risposte predefinite, elenco delle chiamate senza risposta che ogni test vuole vuoto): hangar vuoto; 400 del server su «Crea filtro» → `aria-invalid` e messaggio sul campo, valori conservati; «Esegui ora» → 202 → polling (2 letture Running, poi Completed) → «Missione completata» (~5 s, almeno un ciclo di 4 s); banner «Database non raggiungibile» con `reducedMotion: 'reduce'`. `npm run test:e2e` → 4 passati. Aggiunte: `playwright.config.ts` solo Chromium (unico browser installato), headless e reporter `list` in locale; `e2e/tsconfig.json` allineato a bundler + DOM (`tsc -p e2e` pulito; lo scaffold usava nodenext); rimosso `e2e/vue.spec.ts` demo
 - **Precondizione**: Fase 13 `[x]`
 - **File**: `e2e/*.spec.ts`
 - **Operazione**: CREATE
@@ -233,7 +233,7 @@ Radice: `E:\Davide\Progetti\dr-mailroom-workspace\dr-mailroom-fe\` (nuovo repo, 
 - **Su divergenza**: STOP — scrivi `⚠️ Divergenza Fase 14: <cosa>` in plan.md, non procedere
 
 ### Fase 15: Container
-- **Stato**: [ ]
+- **Stato**: [x] — 2026-10-11, verificato su quanto fatto nel commit `3222dea` (piano `volumi-host-vm`/completamento): multi-stage `node:24-alpine` → `nginx:1.27-alpine` (node 24, non 22: allineato al progetto), `nginx.conf` in radice (non `nginx/default.conf`) con `try_files … /index.html`, `/config.json` e rotte SPA `no-store`, `/assets/` immutabili; `.dockerignore` esclude `public/config.json`; chiave assente dall'immagine (`docker history` 0 occorrenze, `grep` sulla html root vuoto); esposizione via `nginx-proxy` su `mailroom.spectre.local` invece di una porta pubblicata, documentata nel README insieme a `Mailroom__Frontend__BaseUrl`; preflight CORS 204 con `Access-Control-Allow-Origin: http://mailroom.spectre.local`; viste caricate dal container senza errori (prova reale del piano `analisi-mail-mittente`)
 - **Precondizione**: Fase 14 `[x]`
 - **File**: `Dockerfile`, `nginx/default.conf`, `.dockerignore`
 - **Operazione**: CREATE
@@ -243,7 +243,7 @@ Radice: `E:\Davide\Progetti\dr-mailroom-workspace\dr-mailroom-fe\` (nuovo repo, 
 - **Su divergenza**: STOP — scrivi `⚠️ Divergenza Fase 15: <cosa>` in plan.md, non procedere
 
 ### Fase 16: Debug combinato e workspace
-- **Stato**: [ ]
+- **Stato**: [x] — 2026-10-11. Commit FE `00a7bb4`: `.vscode/launch.json` con «Vue Dev Server» e «Chrome — localhost:5173» (scelta dell'utente: tutti i profili rilevati), versionato con `!.vscode/launch.json` nel `.gitignore` come nel backend; `tasks.json` non serve (nessun `preLaunchTask`). `dr-mailroom.code-workspace`: `launch.compounds` «API + FE» = `Debug dr-mailroom-api (http)` (api · dr-mailroom) + `Vue Dev Server` (fe · dr-mailroom-fe), `stopAll`; JSON validato, nomi verificati sui due `launch.json`. Il workspace non è in un repo git: nessun commit. Prova (scelta dell'utente: simulata dall'agente): container `dr-mailroom-api` fermato (0 caselle attive), API avviata come il profilo (`ASPNETCORE_ENVIRONMENT=Development`, `http://localhost:5180`) e `npm run dev` (5173) → vista Caselle con i dati reali, banner «database verificato», nessun errore in console; poi processi chiusi e container riavviato. Nota d'uso: il compound richiede la porta 5180 libera, quindi va fermato prima il container API
 - **Precondizione**: Fase 15 `[x]`
 - **File**: `dr-mailroom-fe/.vscode/launch.json`, `dr-mailroom-fe/.vscode/tasks.json`, `E:\Davide\Progetti\dr-mailroom-workspace\dr-mailroom.code-workspace`
 - **Operazione**: CREATE / EDIT
@@ -253,7 +253,7 @@ Radice: `E:\Davide\Progetti\dr-mailroom-workspace\dr-mailroom-fe\` (nuovo repo, 
 - **Su divergenza**: STOP — scrivi `⚠️ Divergenza Fase 16: <cosa>` in plan.md, non procedere
 
 ### Fase 17: Documentazione
-- **Stato**: [ ]
+- **Stato**: [x] — 2026-10-11, via `/dr-professor`. ⚠️ La `readme-structure` installata nel FE descriveva il README di `dr-guidelines`: scelta dell'utente «come il backend» → regola adattata (Template v1.0 dr-mailroom-fe), README = panoramica + tabella `docs/` + footer; contenuti operativi in `docs/sviluppo.md` (avvio, profili VS Code e nota sulla porta 5180 del container, `config.json`, `gen:api`, test, gate) e `docs/container.md` (immagine, `nginx.conf`, `nginx-proxy`, CORS, rischio della chiave API in una SPA). Commit FE `a325040`. Backend `ddd91fa`: `architettura.md` v2.0 (diagramma, tabella componenti, D10 con link al repo e a design.md), `frontend-specifiche.md` v1.5; grep di «non esiste ancora», «(futuro)», «SPA futura», «solo specifica» in `docs/` → 0. Link verificati: repo pubblici, file su `origin/main`
 - **Precondizione**: Fase 16 `[x]`
 - **File**: `dr-mailroom-fe/README.md`, `dr-mailroom/docs/architettura.md`, `dr-mailroom/docs/frontend-specifiche.md`
 - **Operazione**: CREATE / EDIT
@@ -263,7 +263,7 @@ Radice: `E:\Davide\Progetti\dr-mailroom-workspace\dr-mailroom-fe\` (nuovo repo, 
 - **Su divergenza**: STOP — scrivi `⚠️ Divergenza Fase 17: <cosa>` in plan.md, non procedere
 
 ### Fase 18: Gate di qualità e audit
-- **Stato**: [ ]
+- **Stato**: [x] — 2026-10-11. `lint:check`, `format:check`, `type-check`, `test:unit -- --run`, `build` → exit 0; `git ls-files public/config.json` vuoto; grep nomi protetti su `src/` → 0. `/dr-audit-fe`: **0 ERROR**, 3 WARNING, 6 INFO, nessuna fase correttiva necessaria. WARNING lasciati come miglioramenti futuri: dipendenze `@pinia/colada` e `@pinia/colada-plugin-auto-refetch` installate ma non usate (il polling usa `setInterval` + `useDocumentVisibility`, vedi Fase 12); nome della route `'stats-messages'` ripetuto in `senderMessagesPresentation.ts` invece di importare `STATS_MESSAGES_ROUTE_NAME`; `ServiceStatusBanner` chiama `status.start()` senza `status.stop()` allo smontaggio
 - **Precondizione**: Fase 17 `[x]`
 - **File**: nessuno (solo lettura)
 - **Operazione**: —
@@ -272,19 +272,26 @@ Radice: `E:\Davide\Progetti\dr-mailroom-workspace\dr-mailroom-fe\` (nuovo repo, 
 - **Verifica passo**: tutti i comandi → exit 0; `config.json` non tracciato; grep nomi protetti → 0; nessun `ERROR` nel report di audit
 - **Su divergenza**: STOP — scrivi `⚠️ Divergenza Fase 18: <cosa>` in plan.md, non procedere
 
+### Verifica indipendente del 2026-10-11 (`/dr-verify-plan`)
+Esito: gate rieseguiti verdi (vitest 232/232), container 200, chiave fuori da repo e immagine, struttura conforme. Divergenze:
+- ⚠️ Divergenza: `GET /api/v1/filters/{id}` (mappa della specifica, "Filtri (dettaglio / modifica)") non è chiamato da nessun service. La modifica usa i dati dell'elenco. Copertura 25 su 26. **Risolta 2026-10-11** (scelta dell'utente): accettato, nessuna modifica
+- ⚠️ Divergenza: la direzione visiva è passata da "Hangar Federale" a LCARS (piani FE `2026-10-09-lcars-enterprise-d` ed `-e`, commit `fcc1502` e `0c81f5d`). `design.md` descrive ancora la direzione e i contrasti della vecchia palette; il grep dei nomi protetti non copre Star Trek/LCARS. **Risolta 2026-10-11** (scelta dell'utente): la direzione LCARS dei piani `lcars-*` sostituisce `design.md`, che resta come documento storico; nessun file di design modificato
+- ⚠️ Divergenza: `src/utils/formatYearMonth.ts` (Scope) non esiste. Non serve: la revisione v1.3 della Fase 13 ha tolto le viste mensili e nessun file lo usa
+- ⚠️ Divergenza: "un commit per fase" non rispettato per le Fasi 11–13 (unico commit `10c684a`, nota della Fase 11: "nessun commit, richiesta della sessione") e per la Fase 15 (commit `3222dea` del piano FE `2026-10-09-docker-fe`). È storia già scritta: non si corregge
+
 ## Criteri di verifica finale
-- [ ] Repo `dr-mailroom-fe` creato, con `dr-guidelines` + `dr-fe` nel manifest
-- [ ] Le 4 viste e il banner coprono tutti i 26 endpoint della "Mappa degli endpoint" della specifica v1.1 (alerts esclusi), pausa/ripresa e annullamento giri inclusi
-- [ ] Ogni risposta 200/202/400/401/404/409/503 gestita come da tabella della specifica (401 con avviso su `config.json`)
-- [ ] Struttura cartelle conforme a `frontend-organization.instructions.md` (shared vs dominio, uno store per dominio, nessuna logica nelle view)
-- [ ] Chiave API solo in memoria; `config.json` non committato (`git ls-files` vuoto, repo pubblico); nessun `localStorage` per dati sensibili
-- [ ] Contrasti misurati ≥ AA; ogni animazione ha il ramo `prefers-reduced-motion`; nessuno stato espresso solo col colore
-- [ ] Nessun nome/logo/asset protetto (grep case-insensitive per "Gundam", "EFSF", "Minovsky", "Federation", "Federazione", "White Base", "RX-78", "Sunrise", "Bandai" su `src/` → 0)
-- [ ] Icona dell'applicazione originale al posto di quella di Vue, approvata al Checkpoint C1
-- [ ] Checkpoint C1 approvato dall'utente
-- [ ] Un commit locale per fase, nessun push dall'esecutore
-- [ ] Gate di Fase 18 tutti verdi; container funzionante
-- [ ] Verifica indipendente con `/dr-verify-plan`
+- [x] Repo `dr-mailroom-fe` creato, con `dr-guidelines` + `dr-fe` nel manifest
+- [x] Le 4 viste e il banner coprono tutti i 26 endpoint della "Mappa degli endpoint" della specifica v1.1 (alerts esclusi), pausa/ripresa e annullamento giri inclusi — 25 su 26: `GET /filters/{id}` escluso per decisione dell'utente (2026-10-11)
+- [x] Ogni risposta 200/202/400/401/404/409/503 gestita come da tabella della specifica (401 con avviso su `config.json`)
+- [x] Struttura cartelle conforme a `frontend-organization.instructions.md` (shared vs dominio, uno store per dominio, nessuna logica nelle view)
+- [x] Chiave API solo in memoria; `config.json` non committato (`git ls-files` vuoto, repo pubblico); nessun `localStorage` per dati sensibili
+- [x] Contrasti misurati ≥ AA; ogni animazione ha il ramo `prefers-reduced-motion`; nessuno stato espresso solo col colore
+- [x] Nessun nome/logo/asset protetto (grep case-insensitive per "Gundam", "EFSF", "Minovsky", "Federation", "Federazione", "White Base", "RX-78", "Sunrise", "Bandai" su `src/` → 0)
+- [x] Icona dell'applicazione originale al posto di quella di Vue, approvata al Checkpoint C1
+- [x] Checkpoint C1 approvato dall'utente
+- [x] Un commit locale per fase, nessun push dall'esecutore — eccezioni accettate: Fasi 11–13 in `10c684a`, Fase 15 in `3222dea`
+- [x] Gate di Fase 18 tutti verdi; container funzionante
+- [x] Verifica indipendente con `/dr-verify-plan`
 
 ## Domande (chiuse il 2026-10-08)
 - **D-1** ✅ Repo `davraf-amuro/dr-mailroom-fe` **pubblico**. Conseguenza: `public/config.json` e qualunque chiave restano fuori dal repo (già previsto)
