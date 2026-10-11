@@ -13,6 +13,7 @@ public sealed class EndpointTests : IClassFixture<MailroomApiFactory>
     private const string FiltersUrl = "/api/v1/filters";
     private const string RunsUrl = "/api/v1/runs";
     private const string StatsUrl = "/api/v1/stats";
+    private const string MessagesUrl = "/api/v1/messages";
 
     private readonly MailroomApiFactory _factory;
     private readonly HttpClient _client;
@@ -384,6 +385,61 @@ public sealed class EndpointTests : IClassFixture<MailroomApiFactory>
     public async Task Stats_UnknownMailbox_Returns404Async(string path)
     {
         var response = await _client.GetAsync($"{StatsUrl}/{path}?mailboxId=999999");
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task SenderMessages_ReturnsPageOfSender_CaseInsensitiveAsync()
+    {
+        var mailboxId = await SeedMailboxAsync();
+        await using (var db = _factory.NewContext())
+        {
+            db.Messages.AddRange(
+                new Message { MailboxId = mailboxId, GmailMessageId = "sm-1", ThreadId = "t", SenderAddress = "a@x.it", Subject = "vecchia", ReceivedAtUtc = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc), Labels = "INBOX", HasAttachments = true },
+                new Message { MailboxId = mailboxId, GmailMessageId = "sm-2", ThreadId = "t", SenderAddress = "a@x.it", Subject = "recente", ReceivedAtUtc = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+                new Message { MailboxId = mailboxId, GmailMessageId = "sm-3", ThreadId = "t", SenderAddress = "b@x.it", Subject = "altro", ReceivedAtUtc = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc) });
+            await db.SaveChangesAsync();
+        }
+
+        var page = await _client.GetFromJsonAsync<JsonElement>($"{MessagesUrl}?mailboxId={mailboxId}&senderAddress=A@X.IT&pageSize=1&sortDir=Asc");
+
+        Assert.Equal(2, page.GetProperty("totalCount").GetInt32());
+        var row = Assert.Single(page.GetProperty("items").EnumerateArray());
+        Assert.Equal("vecchia", row.GetProperty("subject").GetString());
+        Assert.Equal("INBOX", row.GetProperty("labels").GetString());
+        Assert.True(row.GetProperty("hasAttachments").GetBoolean());
+    }
+
+    [Fact]
+    public async Task SenderMessages_NoMail_Returns200EmptyAsync()
+    {
+        var mailboxId = await SeedMailboxAsync();
+
+        var page = await _client.GetFromJsonAsync<JsonElement>($"{MessagesUrl}?mailboxId={mailboxId}&senderAddress=nessuno@x.it");
+
+        Assert.Equal(0, page.GetProperty("totalCount").GetInt32());
+        Assert.Empty(page.GetProperty("items").EnumerateArray());
+    }
+
+    [Theory]
+    [InlineData("senderAddress=a@x.it", "mailboxId")]
+    [InlineData("mailboxId=1", "senderAddress")]
+    [InlineData("mailboxId=1&senderAddress=%20", "senderAddress")]
+    [InlineData("mailboxId=1&senderAddress=a@x.it&page=0", "page")]
+    [InlineData("mailboxId=1&senderAddress=a@x.it&pageSize=101", "pageSize")]
+    public async Task SenderMessages_InvalidQuery_Returns400Async(string query, string expectedErrorKey)
+    {
+        var response = await _client.GetAsync($"{MessagesUrl}?{query}");
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains(expectedErrorKey, await ErrorKeysAsync(response));
+    }
+
+    [Fact]
+    public async Task SenderMessages_UnknownMailbox_Returns404Async()
+    {
+        var response = await _client.GetAsync($"{MessagesUrl}?mailboxId=999999&senderAddress=a@x.it");
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }

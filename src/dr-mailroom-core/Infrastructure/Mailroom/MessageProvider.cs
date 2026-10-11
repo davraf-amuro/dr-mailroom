@@ -1,4 +1,7 @@
+using System.Linq.Expressions;
+using dr_mailroom_core.Enums;
 using dr_mailroom_core.Infrastructure.Mailroom.Entities;
+using dr_mailroom_core.Infrastructure.Mailroom.Filters;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -107,6 +110,45 @@ public class MessageProvider(MailroomDbContext context, ILogger<MessageProvider>
             .Where(m => m.SenderAddress == sender)
             .OrderByDescending(m => m.ReceivedAtUtc)
             .ToListAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// Pagina delle mail che rispettano il filtro (già normalizzato dal service), ordinate per data di ricezione
+    /// con Id come spareggio, proiettate con il selector EF-traducibile, più il totale per la paginazione.
+    /// </summary>
+    public async Task<(List<TResult> Items, int TotalCount)> GetSenderMessagesPageAsync<TResult>(
+        SenderMessageFilter filter,
+        SortDirection sortDir,
+        int page,
+        int pageSize,
+        Expression<Func<Message, TResult>> selector,
+        CancellationToken cancellationToken)
+    {
+        logger.LogInformation(
+            "Mail del mittente {SenderAddress} nella casella {MailboxId}, ricerca {Search}, verso {SortDir}, pagina {Page} da {PageSize}",
+            filter.SenderAddress, filter.MailboxId, filter.Search, sortDir, page, pageSize);
+
+        var messages = context.Messages.Where(filter.ToExpression());
+
+        // Leggo da DB il numero di mail che rispettano il filtro
+        var totalCount = await messages.CountAsync(cancellationToken);
+        if (totalCount == 0)
+        {
+            return ([], 0);
+        }
+
+        var ordered = sortDir == SortDirection.Asc
+            ? messages.OrderBy(m => m.ReceivedAtUtc).ThenBy(m => m.Id)
+            : messages.OrderByDescending(m => m.ReceivedAtUtc).ThenByDescending(m => m.Id);
+
+        // Leggo da DB la pagina richiesta, con le sole colonne del DTO
+        var items = await ordered
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(selector)
+            .ToListAsync(cancellationToken);
+
+        return (items, totalCount);
     }
 
     /// <summary>True se il messaggio esiste.</summary>
