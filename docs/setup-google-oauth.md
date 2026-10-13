@@ -48,6 +48,15 @@ In **Accesso ai dati → Aggiungi o rimuovi ambiti**, seleziona `.../auth/gmail.
 
 Google lo classifica come ambito "con restrizioni". Per un uso personale non serve altro. Con questo scope dr-mailroom **non può** modificare niente: né lo stato letto/non letto, né le label, né cancellare mail.
 
+### Scope del cestino (facoltativo)
+
+"Elimina tutte" sposta nel cestino le mail di un mittente e ha bisogno anche di `.../auth/gmail.modify`. Aggiungilo nello stesso elenco di ambiti solo se usi questa funzione.
+
+- dr-mailroom lo chiede con un **consenso separato**, la prima volta che premi "Elimina tutte" su una casella. Il token che ne nasce è un secondo token, usato solo per il cestino: la lettura continua con `gmail.readonly`.
+- Nella pagina di consenso scegli **lo stesso account** della casella: con un account diverso dr-mailroom rifiuta l'autorizzazione.
+- Anche questo ambito è "con restrizioni" e per un'app personale non verificata vale lo stesso avviso "App non verificata" del collegamento.
+- Per revocarlo: [Account Google → Sicurezza → App di terze parti](https://myaccount.google.com/permissions). Il giro successivo di cestino fallisce, dr-mailroom azzera quel token e la lettura continua a funzionare.
+
 ## 4. Pubblicare l'app "In produzione"
 
 In **Pubblico** premi **Pubblica app**. Lo stato diventa **In produzione**.
@@ -113,4 +122,4 @@ Per controllare il collegamento usa `GET /api/v1/mailboxes`. Il primo giro (cron
 - Codice: `src/dr-mailroom-core/Gmail/GmailAuthorizer.cs`, `src/dr-mailroom-api/Services/MailboxService.cs`
 - Architettura: [architettura.md](architettura.md)
 
-*Revisione v1.0 — 2026-10-05 19:36 — claude-opus-5-5*
+*Revisione v1.1 — 2026-10-13 21:35 — claude-opus-5-5*

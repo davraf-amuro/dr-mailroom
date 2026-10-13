@@ -224,7 +224,7 @@ public sealed class RunOrchestratorTests : IAsyncDisposable
         await using (var scope = _harness.Services.CreateAsyncScope())
         {
             runId = await scope.ServiceProvider.GetRequiredService<RunProvider>()
-                .CreateRunAsync(mailboxId, RunTrigger.Manual, null, null, CancellationToken.None);
+                .CreateRunAsync(mailboxId, RunTrigger.Manual, null, null, null, CancellationToken.None);
         }
 
         await using (var scope = _harness.Services.CreateAsyncScope())

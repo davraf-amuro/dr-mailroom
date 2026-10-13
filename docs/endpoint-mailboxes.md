@@ -43,7 +43,8 @@ Accesso DB: sì. Servizi esterni: sì, Google OAuth 2.0 (solo `connect` e `conne
 | GET | `/api/v1/mailboxes/summary` | Elenco caselle ridotto | Query: `emailAddress`, `status` | 200 `List<MailboxSummaryDto>` · 400 · 404 se vuoto |
 | GET | `/api/v1/mailboxes/{id}` | Dettaglio casella | Route: `id` (int) | 200 `MailboxDto` · 404 |
 | GET | `/api/v1/mailboxes/connect` | URL della pagina di consenso Google | — | 200 `ConnectUrlDto` (`authorizationUrl`) |
-| GET | `/api/v1/mailboxes/connect/callback` | Ritorno da Google (anonimo) | Query: `code`, `state`, `error` | 302 verso il frontend con `oauth=ok` oppure `oauth=error` |
+| GET | `/api/v1/mailboxes/connect/callback` | Ritorno da Google (anonimo), sia per il collegamento sia per il cestino: lo state firmato dice quale | Query: `code`, `state`, `error` | 302 verso il frontend con `oauth=ok` oppure `oauth=error` (per il cestino: sulla vista del mittente, con `reason=trash_mailbox_mismatch` se l'account Google non è quello della casella) |
+| GET | `/api/v1/mailboxes/{id}/trash-authorization` | URL del consenso Google per il cestino (scope `gmail.modify`, token separato, D21) | Route: `id` (int); query: `sender` (facoltativo, la vista a cui tornare) | 200 `ConnectUrlDto` · 404 · 409 se la casella non è attiva |
 | POST | `/api/v1/mailboxes/{id}/pause` | Mette in pausa la casella e annulla i suoi giri in corso. Idempotente | Route: `id` (int) | 204 · 404 · 409 se eliminata o con token revocato |
 | POST | `/api/v1/mailboxes/{id}/resume` | Riprende una casella in pausa. Idempotente su `Active` | Route: `id` (int) | 204 · 404 · 409 se non è in pausa |
 | DELETE | `/api/v1/mailboxes/{id}` | Eliminazione logica: stato `Deleted`, token rimosso. Idempotente su una casella già eliminata | Route: `id` (int) | 204 · 404 · 409 se un giro è in corso |
@@ -103,4 +104,4 @@ flowchart LR
 Per i casi d'uso fare riferimento a `src/dr-mailroom-api/dr-mailroom-api.http`.
 
 ---
-*Revisione v1.2 — 2026-10-09 20:35 — claude-opus-5-5*
+*Revisione v1.3 — 2026-10-13 21:35 — claude-opus-5-5*

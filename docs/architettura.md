@@ -2,6 +2,8 @@
 
 dr-mailroom è un servizio .NET che legge una o più caselle Gmail **in sola lettura**. Salva le statistiche per mittente e applica filtri sulle mail nuove. Le mail che passano un filtro vengono lavorate da uno o più processi: estrazione degli allegati e allerta.
 
+L'unica eccezione alla sola lettura la decide l'utente: **"Elimina tutte"** sposta nel cestino di Gmail le mail ricevute da un mittente (D21). Usa un permesso Gmail separato, chiesto a parte per ogni casella; la lettura non lo vede mai.
+
 Il servizio gira da solo secondo un cron configurabile. Un giro si può anche avviare a mano via API. Il frontend è un progetto separato: qui c'è solo la sua specifica ([frontend-specifiche.md](frontend-specifiche.md)).
 
 Fonte delle decisioni: il piano `.ai/plans/2026-10-02-mailroom-gmail-reader/plan.md`, nato dal tavolo `/dr-warroom` del 2026-10-02 e dalle risposte del proprietario.
@@ -70,6 +72,7 @@ flowchart LR
 | D18 | Rimozione di una casella | Solo logica: stato `Deleted` e refresh token cancellato. Niente più giri né modifiche ai suoi filtri (409); le statistiche restano. Un indirizzo eliminato non si può ricollegare |
 | D19 | Fermare il lavoro | `POST /api/v1/runs/{id}/cancel` e `POST /api/v1/runs/cancel` annullano uno o tutti i giri in corso, che chiudono `Cancelled`. `POST /api/v1/mailboxes/{id}/pause` mette la casella in pausa (`Disabled`, salvato su DB): niente giri dal cron, giro manuale e riapplica → 409, e annulla i giri in corso. `POST /api/v1/mailboxes/{id}/resume` la riporta `Active`. Il backfill annullato riprende dalla pagina salvata |
 | D20 | Posta inviata | La posta inviata (label Gmail `SENT`, oppure mittente uguale all'indirizzo della casella) si **segnala**, non si esclude: `Message.IsSent`. Conteggi, classifiche e totali restano invariati. I filtri lavorano anche la posta inviata: se un filtro chiede gli allegati delle mail inviate, li salva |
+| D21 | Cestino di un mittente | `POST /api/v1/messages/trash-sender` avvia un giro `TrashSender` che sposta nel **cestino** di Gmail (mai eliminazione definitiva) le mail **ricevute** dal mittente nella casella e non ancora cestinate: `users.messages.batchModify` con la label `TRASH`, a blocchi da 1.000, con ripiego su `users.messages.trash` una mail alla volta. Serve un **secondo token** con scope `gmail.modify` (vedi T1), chiesto con un consenso separato al primo uso (`GET /api/v1/mailboxes/{id}/trash-authorization`) e salvato solo se l'account Google è quello della casella. Nel DB le mail restano con `Message.TrashedAtUtc` e spariscono da elenchi, statistiche, anteprima dei filtri e riapplica; il job `PurgeTrashedMessagesJob` le elimina dopo `Mailroom:Retention:TrashedMessagesDays` giorni (default 180). Il giro di cestino non aggiorna `LastRunAtUtc` né `LastError` della casella. `invalid_grant` sul token del cestino azzera solo quel token: la casella resta leggibile |
 
 ---
 
@@ -77,7 +80,7 @@ flowchart LR
 
 | # | Tema | Decisione |
 |---|------|-----------|
-| T1 | Accesso | Gmail API, non IMAP. OAuth2 con il solo scope `https://www.googleapis.com/auth/gmail.readonly`: lo stato letto/non letto non si può modificare per costruzione |
+| T1 | Accesso | Gmail API, non IMAP. La lettura usa OAuth2 con il solo scope `https://www.googleapis.com/auth/gmail.readonly`: lo stato letto/non letto non si può modificare per costruzione. Il cestino (D21) usa un **token separato** con scope `gmail.modify` (`Mailbox.EncryptedTrashRefreshToken`), aperto solo da `GmailTrasher`: `GmailReader`, ingestione, filtri e processi non lo ricevono mai |
 | T2 | Cartelle | In Gmail le "cartelle" sono **label**. Si legge per messaggio (`messageId`), non per cartella: nessun doppio conteggio. Le label si salvano come attributo del messaggio |
 | T3 | Checkpoint | Backfill: `pageToken` salvato su `Mailbox.BackfillPageToken` dopo ogni pagina. L'`historyId` del profilo si cattura **all'inizio** del backfill e fa da base all'incrementale. Incrementale: `users.history.list` da `HistoryId`; HTTP 404 (history scaduta) → scansione completa idempotente |
 | T4 | Idempotenza | UNIQUE `(MailboxId, GmailMessageId)`. Insert idempotenti: errori 2601/2627 = già presente. Mai chiave sul `Message-ID` dell'header |
@@ -122,7 +125,8 @@ Lo scheduler è Quartz.NET, registrato in `SchedulingExtensions.AddMailroomSched
 | Job | Quando parte | Cosa fa |
 |---|---|---|
 | `ScheduledRunJob` | a ogni scatto del cron `Mailroom:Schedule:Cron` (default `0 0/15 * * * ?`, ogni 15 minuti) | chiama `ScheduledRunner.RunAllAsync`: un giro per ogni casella attiva |
-| `OnDemandRunJob` | solo quando `QuartzRunDispatcher` lo invoca con `TriggerJob`; non ha un trigger proprio | esegue il giro indicato dal `RunId` nel `JobDataMap` (giro manuale o riapplica) |
+| `OnDemandRunJob` | solo quando `QuartzRunDispatcher` lo invoca con `TriggerJob`; non ha un trigger proprio | esegue il giro indicato dal `RunId` nel `JobDataMap` (giro manuale, riapplica o cestino di un mittente) |
+| `PurgeTrashedMessagesJob` | a ogni scatto del cron `Mailroom:Retention:PurgeCron` (default `0 30 3 * * ?`, ogni giorno alle 03:30) | elimina dal DB le mail cestinate da più di `Mailroom:Retention:TrashedMessagesDays` giorni; allerte, esecuzioni dei processi e allegati estratti seguono in cascata, i file su disco restano |
 
 - `ScheduledRunJob` ha `[DisallowConcurrentExecution]`: se il giro precedente dura più di 15 minuti, lo scatto successivo aspetta invece di sovrapporsi.
 - All'arresto del servizio, `ApplicationStopping` annulla i giri in corso tramite `RunCancellationRegistry`; poi `WaitForJobsToComplete = true` aspetta che si chiudano `Cancelled`. Senza l'annullamento Quartz aspetterebbe un giro che non si ferma, fino a essere ucciso.
@@ -348,4 +352,4 @@ erDiagram
 | `HasAttachments` dedotto dal tipo MIME `multipart/mixed` | con `format=metadata` Gmail non elenca le parti: alcune mail con allegati inline possono risultare senza | nessuno necessario: l'estrazione legge sempre le parti reali (`format=full`) |
 | Riapplica e giro manuale verificano la casella e poi la affidano allo scheduler | in una finestra brevissima un altro giro può prendere il lock prima | il giro parte e chiude come `Skipped`, senza effetti sui dati |
 
-*Revisione v2.0 — 2026-10-11 21:47 — claude-opus-5-5*
+*Revisione v2.1 — 2026-10-13 21:35 — claude-opus-5-5*

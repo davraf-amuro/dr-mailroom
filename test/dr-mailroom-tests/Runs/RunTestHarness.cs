@@ -58,6 +58,8 @@ public sealed class RunTestHarness : IAsyncDisposable
 
     public FakeMultiMailboxReader Gmail { get; } = new();
 
+    public FakeGmailTrasher Trasher { get; } = new();
+
     public FakeMailboxLock Lock { get; } = new();
 
     public string AttachmentsRoot { get; } = Path.Combine(Path.GetTempPath(), "dr-mailroom-tests", Guid.NewGuid().ToString("N"));
@@ -80,6 +82,7 @@ public sealed class RunTestHarness : IAsyncDisposable
         // Sostituzioni: le ultime registrazioni vincono
         services.AddSingleton<IMailboxLock>(Lock);
         services.AddSingleton<IGmailReader>(Gmail);
+        services.AddSingleton<IGmailTrasher>(Trasher);
         services.AddSingleton<ITokenProtector, PlainTokenProtector>();
 
         Services = services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true, ValidateOnBuild = true });
@@ -122,13 +125,14 @@ public sealed class RunTestHarness : IAsyncDisposable
     }
 
     /// <summary>Crea un giro come farebbe l'API ed eseguilo come farebbe il job on-demand.</summary>
-    public async Task<Run> RunAsync(int mailboxId, RunTrigger trigger, int? filterId = null, string? processes = null)
+    public async Task<Run> RunAsync(
+        int mailboxId, RunTrigger trigger, int? filterId = null, string? processes = null, string? senderAddress = null)
     {
         long runId;
         await using (var scope = Services.CreateAsyncScope())
         {
             runId = await scope.ServiceProvider.GetRequiredService<RunProvider>()
-                .CreateRunAsync(mailboxId, trigger, filterId, processes, CancellationToken.None);
+                .CreateRunAsync(mailboxId, trigger, filterId, processes, senderAddress, CancellationToken.None);
         }
 
         await using (var scope = Services.CreateAsyncScope())

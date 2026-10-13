@@ -6,10 +6,14 @@ using dr_mailroom_core.Runs;
 
 namespace dr_mailroom_api.Services;
 
-/// <summary>Servizio dei giri: avvio immediato con 409 su casella occupata (D11, D16, D17), annullamento e consultazione.</summary>
+/// <summary>
+/// Servizio dei giri: avvio immediato con 409 su casella occupata (D11, D16, D17), cestino di un mittente (D-T1 bis),
+/// annullamento e consultazione.
+/// </summary>
 public class RunService(
     RunProvider runProvider,
     MailboxProvider mailboxProvider,
+    MessageProvider messageProvider,
     IMailboxLock mailboxLock,
     IRunDispatcher dispatcher,
     RunCancellationRegistry cancellationRegistry,
@@ -79,7 +83,7 @@ public class RunService(
             }
 
             // Scrivo su DB il giro, poi lo affido a Quartz per l'avvio immediato
-            var runId = await runProvider.CreateRunAsync(mailboxId, trigger, filterId, requestedProcesses, cancellationToken);
+            var runId = await runProvider.CreateRunAsync(mailboxId, trigger, filterId, requestedProcesses, null, cancellationToken);
             await dispatcher.DispatchAsync(runId, cancellationToken);
             started.Add(runId);
         }
@@ -94,6 +98,54 @@ public class RunService(
         }
 
         return ServiceResult<RunsStartedDto>.Ok(new RunsStartedDto(started, skipped));
+    }
+
+    /// <summary>
+    /// "Elimina tutte": avvia il giro che sposta nel cestino di Gmail le mail ricevute dal mittente nella casella.
+    /// 404 se la casella non esiste; 409 se non è attiva, se il cestino non è autorizzato, se non c'è nulla da cestinare
+    /// o se la casella ha già un giro in corso.
+    /// </summary>
+    public async Task<ServiceResult<TrashSenderStartedDto>> StartTrashSenderAsync(TrashSenderRequest request, CancellationToken cancellationToken)
+    {
+        var mailboxId = request.MailboxId!.Value;
+        var sender = request.SenderAddress!.Trim().ToLowerInvariant();
+
+        // Leggo da DB lo stato della casella
+        var status = await mailboxProvider.GetMailboxStatusAsync(mailboxId, cancellationToken);
+        if (status is null)
+        {
+            return ServiceResult<TrashSenderStartedDto>.NotFound(ServiceMessages.MailboxNotFound);
+        }
+
+        if (status != MailboxStatus.Active)
+        {
+            return ServiceResult<TrashSenderStartedDto>.Conflict(ServiceMessages.MailboxNotActive);
+        }
+
+        // Leggo da DB il token del cestino: senza, il frontend chiede prima il consenso
+        if (string.IsNullOrEmpty(await mailboxProvider.GetTrashTokenAsync(mailboxId, cancellationToken)))
+        {
+            return ServiceResult<TrashSenderStartedDto>.Conflict(ServiceMessages.TrashNotAuthorized);
+        }
+
+        // Leggo da DB quante mail del mittente sono ancora da cestinare
+        var toTrash = await messageProvider.CountTrashCandidatesAsync(mailboxId, sender, cancellationToken);
+        if (toTrash == 0)
+        {
+            return ServiceResult<TrashSenderStartedDto>.Conflict(ServiceMessages.NothingToTrash);
+        }
+
+        if (await IsBusyAsync(mailboxId, cancellationToken))
+        {
+            return ServiceResult<TrashSenderStartedDto>.Conflict(ServiceMessages.MailboxBusy);
+        }
+
+        // Scrivo su DB il giro, poi lo affido a Quartz per l'avvio immediato
+        var runId = await runProvider.CreateRunAsync(mailboxId, RunTrigger.TrashSender, null, null, sender, cancellationToken);
+        await dispatcher.DispatchAsync(runId, cancellationToken);
+
+        logger.LogInformation("Avviato giro di cestino {RunId} sulla casella {MailboxId}: {Count} mail", runId, mailboxId, toTrash);
+        return ServiceResult<TrashSenderStartedDto>.Ok(new TrashSenderStartedDto(runId, toTrash));
     }
 
     /// <summary>Annulla un giro in corso: 404 se non esiste, 409 se è già chiuso. Il giro chiude Cancelled in modo asincrono.</summary>

@@ -28,6 +28,15 @@ public static class MessagesMapping
             .WithSummary("Mail di un mittente in una casella")
             .WithDescription("Griglia delle mail di un mittente (mailboxId e senderAddress obbligatori, mittente confrontato per uguaglianza): oggetto, data di ricezione, label Gmail separate da virgola, presenza di allegati. Paginata (pageSize 1–100, default 25), ordinata per data (sortDir Asc|Desc, default Desc), ricerca facoltativa nell'oggetto. 404 se la casella non esiste; nessuna mail → 200 con totalCount 0.");
 
+        group.MapPost("/trash-sender", TrashSenderHandlerAsync)
+            .Produces<TrashSenderStartedDto>(StatusCodes.Status202Accepted)
+            .Produces<HttpValidationProblemDetails>(StatusCodes.Status400BadRequest)
+            .Produces<ProblemDetails>(StatusCodes.Status404NotFound)
+            .Produces<ProblemDetails>(StatusCodes.Status409Conflict)
+            .WithName("PostTrashSender")
+            .WithSummary("Sposta nel cestino tutte le mail di un mittente")
+            .WithDescription("\"Elimina tutte\": avvia un giro (trigger TrashSender) che sposta nel cestino di Gmail le mail ricevute dal mittente nella casella e non ancora cestinate, a blocchi da 1.000 (batchModify con label TRASH). Usa il token del cestino (scope gmail.modify, D-T1 bis): la lettura resta in sola lettura. Le mail restano recuperabili da Gmail per 30 giorni; in dr-mailroom spariscono da elenchi e statistiche e il DB le elimina dopo la ritenzione configurata. 404 se la casella non esiste; 409 se non è attiva, il cestino non è autorizzato (GET /mailboxes/{id}/trash-authorization), non c'è nulla da cestinare o la casella ha già un giro in corso. L'avanzamento si segue con GET /runs/{runId}.");
+
         group.MapGet("/{id:long}/attachments", GetAttachmentsHandlerAsync)
             .Produces<List<AttachmentDto>>(StatusCodes.Status200OK)
             .Produces<ProblemDetails>(StatusCodes.Status404NotFound)
@@ -50,6 +59,20 @@ public static class MessagesMapping
 
         var result = await service.GetSenderMessagesAsync(filter, cancellationToken);
         return result.Outcome == ServiceOutcome.Ok ? TypedResults.Ok(result.Value) : EndpointResults.Failure(result);
+    }
+
+    /// <summary>"Elimina tutte": 400 su body non valido, poi gli esiti del servizio; 202 con l'Id del giro.</summary>
+    private static async Task<IResult> TrashSenderHandlerAsync(
+        TrashSenderRequest request, IValidator<TrashSenderRequest> validator, RunService service, CancellationToken cancellationToken)
+    {
+        var validation = validator.Validate(request);
+        if (!validation.IsValid)
+        {
+            return TypedResults.ValidationProblem(validation.Errors);
+        }
+
+        var result = await service.StartTrashSenderAsync(request, cancellationToken);
+        return result.Outcome == ServiceOutcome.Ok ? TypedResults.Accepted((string?)null, result.Value) : EndpointResults.Failure(result);
     }
 
     /// <summary>Allegati del messaggio o 404.</summary>

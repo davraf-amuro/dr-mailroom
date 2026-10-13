@@ -42,7 +42,7 @@ public class ScheduledRunner(
 
                 // Scrivo su DB il giro schedulato della casella, poi lo eseguo
                 var runId = await scope.ServiceProvider.GetRequiredService<RunProvider>()
-                    .CreateRunAsync(mailboxId, RunTrigger.Scheduled, null, null, ct);
+                    .CreateRunAsync(mailboxId, RunTrigger.Scheduled, null, null, null, ct);
                 await scope.ServiceProvider.GetRequiredService<RunOrchestrator>().ExecuteAsync(runId, ct);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)

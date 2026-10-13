@@ -32,6 +32,8 @@ I valori **non sensibili** stanno in `src/dr-mailroom-api/appsettings.json`. I *
 | `Authentication:ApiKey:ApiKeyValue` | stringa lunga e casuale | **sì** | obbligatoria: senza, l'API non parte |
 | `Authentication:ApiKey:HeaderName` | `x-api-key` | no | |
 | `Mailroom:Schedule:Cron` | `0 0/15 * * * ?` | no | formato Quartz, **con i secondi** (questo: ogni 15 minuti) |
+| `Mailroom:Retention:TrashedMessagesDays` | `180` | no | giorni dopo i quali le mail spostate nel cestino con "Elimina tutte" si eliminano dal DB (da 1 a 3650) |
+| `Mailroom:Retention:PurgeCron` | `0 30 3 * * ?` | no | quando gira la purga delle mail cestinate (questo: ogni giorno alle 03:30) |
 | `Mailroom:Processing:MaxParallelMailboxes` | `2` | no | caselle lavorate in parallelo dal cron |
 | `Mailroom:Processing:MaxParallelMessages` | `4` | no | consumatori della coda di elaborazione (filtri e processi) per casella; Gmail si legge sempre una mail per volta |
 | `Mailroom:Processing:IncludeSpamTrash` | `false` | no | Spam e Cestino esclusi |
@@ -188,4 +190,4 @@ dotnet format test/dr-mailroom-tests/dr-mailroom-tests.csproj --verify-no-change
 - Container: `Dockerfile`, `docker-compose.yml`, `.env.example`
 - Piano: `.ai/plans/2026-10-02-mailroom-gmail-reader/plan.md` (C7, C10, C11, D12, T6)
 
-*Revisione v1.1 — 2026-10-08 21:48 — claude-opus-5-5*
+*Revisione v1.2 — 2026-10-13 21:35 — claude-opus-5-5*

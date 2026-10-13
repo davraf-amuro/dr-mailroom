@@ -6,8 +6,14 @@ public static class GmailConstants
     /// <summary>Utente "me": l'account a cui appartiene il refresh token.</summary>
     public const string Me = "me";
 
-    /// <summary>Unico scope richiesto: sola lettura, lo stato letto/non letto resta intatto (T1).</summary>
+    /// <summary>Scope della lettura: sola lettura, lo stato letto/non letto resta intatto (T1).</summary>
     public const string ReadOnlyScope = "https://www.googleapis.com/auth/gmail.readonly";
+
+    /// <summary>
+    /// Scope del solo cestino (D-T1 bis): chiesto con un consenso separato e salvato in un token separato,
+    /// che il client di lettura non usa mai.
+    /// </summary>
+    public const string ModifyScope = "https://www.googleapis.com/auth/gmail.modify";
 
     public const string FromHeader = "From";
     public const string SubjectHeader = "Subject";
@@ -18,6 +24,9 @@ public static class GmailConstants
     /// <summary>Label della posta inviata dall'account (anche da alias send-as).</summary>
     public const string SentLabel = "SENT";
     public const string MultipartMixed = "multipart/mixed";
+
+    /// <summary>Massimo di id per users.messages.batchModify (limite documentato da Google).</summary>
+    public const int MaxBatchModifyIds = 1000;
 
     /// <summary>Massimo consentito da users.messages.list per pagina.</summary>
     public const int MaxPageSize = 500;
@@ -35,4 +44,6 @@ public static class GmailConstants
     public const int HistoryListCost = 2;
     public const int MessagesGetCost = 5;
     public const int AttachmentsGetCost = 5;
+    public const int BatchModifyCost = 50;
+    public const int MessagesTrashCost = 5;
 }

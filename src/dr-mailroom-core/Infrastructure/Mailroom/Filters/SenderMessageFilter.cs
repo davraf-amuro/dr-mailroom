@@ -30,9 +30,10 @@ public class SenderMessageFilter
 
     public int? PageSize { get; set; }
 
-    /// <summary>WHERE EF-traducibile con i soli filtri valorizzati.</summary>
+    /// <summary>WHERE EF-traducibile con i soli filtri valorizzati; le mail spostate nel cestino da dr-mailroom non compaiono.</summary>
     public Expression<Func<Message, bool>> ToExpression() =>
-        e => (MailboxId == null || e.MailboxId == MailboxId)
+        e => e.TrashedAtUtc == null
+          && (MailboxId == null || e.MailboxId == MailboxId)
           && (SenderAddress == null || e.SenderAddress == SenderAddress)
           && (Search == null || (e.Subject != null && e.Subject.Contains(Search)));
 }

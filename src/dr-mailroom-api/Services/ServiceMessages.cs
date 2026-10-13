@@ -19,4 +19,6 @@ public static class ServiceMessages
     public const string MailboxPaused = "La casella è in pausa";
     public const string MailboxNotPaused = "La casella non è in pausa";
     public const string MailboxTokenRevoked = "La casella ha il token revocato: va ricollegata";
+    public const string TrashNotAuthorized = "Il cestino della casella non è autorizzato: serve il consenso Google";
+    public const string NothingToTrash = "Nessuna mail del mittente da spostare nel cestino";
 }

@@ -88,26 +88,26 @@ public class MessageProvider(MailroomDbContext context, ILogger<MessageProvider>
         await context.SaveChangesAsync(cancellationToken);
     }
 
-    /// <summary>Messaggi già indicizzati di un mittente nella casella: candidati della riapplica (D13).</summary>
+    /// <summary>Messaggi già indicizzati e non cestinati di un mittente nella casella: candidati della riapplica (D13).</summary>
     public async Task<List<Message>> GetMessagesBySenderAsync(int mailboxId, string senderAddress, CancellationToken cancellationToken)
     {
         var sender = senderAddress.Trim().ToLowerInvariant();
 
         // Leggo da DB i messaggi del mittente (salvato sempre minuscolo, D7)
         return await context.Messages
-            .Where(m => m.MailboxId == mailboxId && m.SenderAddress == sender)
+            .Where(m => m.MailboxId == mailboxId && m.SenderAddress == sender && m.TrashedAtUtc == null)
             .OrderBy(m => m.ReceivedAtUtc)
             .ToListAsync(cancellationToken);
     }
 
-    /// <summary>Messaggi già indicizzati di un mittente in tutte le caselle: candidati dell'anteprima di un filtro globale.</summary>
+    /// <summary>Messaggi già indicizzati e non cestinati di un mittente in tutte le caselle: candidati dell'anteprima di un filtro globale.</summary>
     public async Task<List<Message>> GetMessagesBySenderInAllMailboxesAsync(string senderAddress, CancellationToken cancellationToken)
     {
         var sender = senderAddress.Trim().ToLowerInvariant();
 
         // Leggo da DB i messaggi del mittente in ogni casella
         return await context.Messages
-            .Where(m => m.SenderAddress == sender)
+            .Where(m => m.SenderAddress == sender && m.TrashedAtUtc == null)
             .OrderByDescending(m => m.ReceivedAtUtc)
             .ToListAsync(cancellationToken);
     }
@@ -150,6 +150,63 @@ public class MessageProvider(MailroomDbContext context, ILogger<MessageProvider>
 
         return (items, totalCount);
     }
+
+    /// <summary>
+    /// Mail da cestinare per "Elimina tutte" (D-T1 bis): ricevute dal mittente nella casella (non inviate) e non ancora
+    /// cestinate, dalla più vecchia. Solo Id e id Gmail.
+    /// </summary>
+    public async Task<List<TrashCandidate>> GetTrashCandidatesAsync(int mailboxId, string senderAddress, CancellationToken cancellationToken)
+    {
+        var sender = senderAddress.Trim().ToLowerInvariant();
+
+        // Leggo da DB le mail del mittente ancora da cestinare
+        return await context.Messages
+            .Where(m => m.MailboxId == mailboxId && m.SenderAddress == sender && !m.IsSent && m.TrashedAtUtc == null)
+            .OrderBy(m => m.Id)
+            .Select(m => new TrashCandidate(m.Id, m.GmailMessageId))
+            .ToListAsync(cancellationToken);
+    }
+
+    /// <summary>Quante mail andrebbero nel cestino con "Elimina tutte": stesso criterio di GetTrashCandidatesAsync.</summary>
+    public async Task<int> CountTrashCandidatesAsync(int mailboxId, string senderAddress, CancellationToken cancellationToken)
+    {
+        var sender = senderAddress.Trim().ToLowerInvariant();
+
+        // Leggo da DB il numero di mail del mittente ancora da cestinare
+        return await context.Messages
+            .CountAsync(m => m.MailboxId == mailboxId && m.SenderAddress == sender && !m.IsSent && m.TrashedAtUtc == null, cancellationToken);
+    }
+
+    /// <summary>Marca come cestinate le mail indicate (già spostate nel cestino di Gmail).</summary>
+    public async Task MarkTrashedAsync(IReadOnlyCollection<long> messageIds, DateTime trashedAtUtc, CancellationToken cancellationToken)
+    {
+        // Leggo da DB le mail con tracking: il contesto è NoTracking di default e le aggiorno
+        var messages = await context.Messages.AsTracking()
+            .Where(m => messageIds.Contains(m.Id))
+            .ToListAsync(cancellationToken);
+
+        foreach (var message in messages)
+        {
+            message.TrashedAtUtc = trashedAtUtc;
+        }
+
+        // Scrivo su DB la marcatura del blocco
+        await context.SaveChangesAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// Elimina dal DB le mail cestinate prima della soglia; allerte, esecuzioni dei processi e allegati estratti
+    /// seguono in cascata (vincoli ON DELETE CASCADE). I file già estratti su disco restano. Restituisce quante.
+    /// </summary>
+    public async Task<int> PurgeTrashedBeforeAsync(DateTime thresholdUtc, CancellationToken cancellationToken)
+    {
+        // Scrivo su DB: DELETE in blocco, senza caricare le righe
+        return await TrashedBefore(thresholdUtc).ExecuteDeleteAsync(cancellationToken);
+    }
+
+    /// <summary>Mail cestinate prima della soglia: base della purga (esposta per verificarne la traduzione SQL).</summary>
+    public IQueryable<Message> TrashedBefore(DateTime thresholdUtc) =>
+        context.Messages.Where(m => m.TrashedAtUtc != null && m.TrashedAtUtc < thresholdUtc);
 
     /// <summary>True se il messaggio esiste.</summary>
     public async Task<bool> MessageExistsAsync(long messageId, CancellationToken cancellationToken)

@@ -3,7 +3,7 @@ using dr_mailroom_core.Enums;
 
 namespace dr_mailroom_core.Infrastructure.Mailroom.Entities;
 
-/// <summary>Giro su una casella: schedulato, manuale o riapplica di un filtro, con contatori di avanzamento.</summary>
+/// <summary>Giro su una casella: schedulato, manuale, riapplica di un filtro o cestino di un mittente, con contatori di avanzamento.</summary>
 [Table("Run")]
 public class Run
 {
@@ -23,6 +23,10 @@ public class Run
     /// <summary>Processi richiesti dalla riapplica, separati da virgola; null = tutti quelli del filtro (D13).</summary>
     [Column("RequestedProcesses")]
     public string? RequestedProcesses { get; set; }
+
+    /// <summary>Mittente le cui mail vanno nel cestino; valorizzato solo per Trigger = TrashSender.</summary>
+    [Column("SenderAddress")]
+    public string? SenderAddress { get; set; }
 
     [Column("Status")]
     public RunStatus Status { get; set; } = RunStatus.Running;

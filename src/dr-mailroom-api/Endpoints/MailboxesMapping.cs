@@ -56,6 +56,14 @@ public static class MailboxesMapping
             .WithSummary("Callback OAuth Google")
             .WithDescription("Riceve code e state da Google, salva il refresh token cifrato e reindirizza al frontend con l'esito in query string (oauth=ok|error).");
 
+        group.MapGet("/{id:int}/trash-authorization", GetTrashAuthorizationUrlHandlerAsync)
+            .Produces<ConnectUrlDto>(StatusCodes.Status200OK)
+            .Produces<ProblemDetails>(StatusCodes.Status404NotFound)
+            .Produces<ProblemDetails>(StatusCodes.Status409Conflict)
+            .WithName("GetMailboxTrashAuthorizationUrl")
+            .WithSummary("URL di autorizzazione del cestino")
+            .WithDescription("URL della pagina di consenso Google con scope gmail.modify, usato solo per spostare mail nel cestino (D-T1 bis); la lettura resta gmail.readonly con il suo token. sender (facoltativo) è la vista del mittente a cui tornare. Google torna sul callback, che salva il token solo se l'account è quello della casella. 404 se non esiste, 409 se non è attiva.");
+
         group.MapPost("/{id:int}/pause", PauseHandlerAsync)
             .Produces(StatusCodes.Status204NoContent)
             .Produces<ProblemDetails>(StatusCodes.Status404NotFound)
@@ -122,6 +130,14 @@ public static class MailboxesMapping
     private static async Task<IResult> CallbackHandlerAsync(
         [FromQuery] string? code, [FromQuery] string? state, [FromQuery] string? error, MailboxService service, CancellationToken cancellationToken) =>
         TypedResults.Redirect(await service.HandleCallbackAsync(code, state, error, cancellationToken));
+
+    /// <summary>URL di consenso per il cestino della casella, con la vista del mittente a cui tornare.</summary>
+    private static async Task<IResult> GetTrashAuthorizationUrlHandlerAsync(
+        int id, [FromQuery] string? sender, MailboxService service, CancellationToken cancellationToken)
+    {
+        var result = await service.GetTrashAuthorizationUrlAsync(id, sender, cancellationToken);
+        return result.Outcome == ServiceOutcome.Ok ? TypedResults.Ok(result.Value) : EndpointResults.Failure(result);
+    }
 
     /// <summary>Pausa della casella.</summary>
     private static async Task<IResult> PauseHandlerAsync(int id, MailboxService service, CancellationToken cancellationToken)

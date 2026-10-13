@@ -24,12 +24,13 @@ public class RunProvider(
             .FirstOrDefaultAsync(r => r.Id == runId, cancellationToken);
     }
 
-    /// <summary>Crea un giro in stato Running e ne restituisce l'Id.</summary>
+    /// <summary>Crea un giro in stato Running e ne restituisce l'Id; senderAddress solo per il cestino di un mittente.</summary>
     public async Task<long> CreateRunAsync(
         int mailboxId,
         RunTrigger trigger,
         int? filterId,
         string? requestedProcesses,
+        string? senderAddress,
         CancellationToken cancellationToken)
     {
         var run = new Run
@@ -38,6 +39,7 @@ public class RunProvider(
             Trigger = trigger,
             FilterId = filterId,
             RequestedProcesses = requestedProcesses,
+            SenderAddress = senderAddress,
             Status = RunStatus.Running,
             StartedAtUtc = DateTime.UtcNow,
         };
@@ -145,6 +147,23 @@ public class RunProvider(
         logger.LogInformation(
             "Giro {RunId} chiuso: {Status}, {Processed} messaggi lavorati, {Errors} errori",
             runId, status, messagesProcessed, errorCount);
+    }
+
+    /// <summary>
+    /// Aggiorna i contatori di un giro in corso (avanzamento visibile durante il giro), con un contesto dedicato.
+    /// Non tocca stato ed esito: li scrive FinishRunAsync.
+    /// </summary>
+    public async Task UpdateProgressAsync(long runId, int messagesRead, int messagesProcessed, CancellationToken cancellationToken)
+    {
+        await using var db = await contextFactory.CreateDbContextAsync(cancellationToken);
+
+        // Leggo da DB il giro con tracking, in un contesto pulito
+        var run = await db.Runs.AsTracking().FirstAsync(r => r.Id == runId, cancellationToken);
+        run.MessagesRead = messagesRead;
+        run.MessagesProcessed = messagesProcessed;
+
+        // Scrivo su DB l'avanzamento
+        await db.SaveChangesAsync(cancellationToken);
     }
 
     /// <summary>Giri che rispettano il filtro, dal più recente, proiettati con il selector EF-traducibile.</summary>

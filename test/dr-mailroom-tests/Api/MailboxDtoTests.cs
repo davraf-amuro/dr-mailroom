@@ -82,6 +82,42 @@ public class MailboxDtoTests
     }
 
     [Fact]
+    public async Task Projection_LastRunMessagesRead_TakesLatestCompletedOrFailedRunAsync()
+    {
+        // Giri inseriti in ordine di Id: i più recenti (Running, Skipped, Cancelled) non sono "conclusi"
+        var mailbox = new Mailbox
+        {
+            EmailAddress = "c@example.com",
+            Runs =
+            [
+                NewRun(RunStatus.Completed, 10),
+                NewRun(RunStatus.Failed, 25),
+                NewRun(RunStatus.Skipped, 0),
+                NewRun(RunStatus.Cancelled, 6500),
+                NewRun(RunStatus.Running, 300),
+            ],
+        };
+
+        var dto = await ProjectAsync(mailbox);
+
+        Assert.Equal(25, dto.LastRunMessagesRead);
+    }
+
+    [Fact]
+    public async Task Projection_WithoutConcludedRuns_HasNullLastRunMessagesReadAsync()
+    {
+        var mailbox = new Mailbox
+        {
+            EmailAddress = "d@example.com",
+            Runs = [NewRun(RunStatus.Skipped, 0), NewRun(RunStatus.Running, 40)],
+        };
+
+        var dto = await ProjectAsync(mailbox);
+
+        Assert.Null(dto.LastRunMessagesRead);
+    }
+
+    [Fact]
     public void Projection_TranslatesToSqlServer_WithoutClientEvaluation()
     {
         // Solo generazione della query: nessuna connessione aperta

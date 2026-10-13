@@ -1,3 +1,4 @@
+using dr_mailroom_core.Enums;
 using dr_mailroom_core.Gmail;
 using dr_mailroom_core.Infrastructure.Mailroom;
 using dr_mailroom_core.Runs;
@@ -29,13 +30,23 @@ public sealed class RecordingRunDispatcher : IRunDispatcher
     }
 }
 
-/// <summary>Autorizzazione OAuth finta: URL fisso, nessuna chiamata a Google.</summary>
+/// <summary>Autorizzazione OAuth finta: URL fisso con lo scopo, nessuna chiamata a Google.</summary>
 public sealed class FakeGmailAuthorizer : IGmailAuthorizer
 {
-    public string BuildAuthorizationUrl(string state) => "https://accounts.example/consent?state=" + Uri.EscapeDataString(state);
+    /// <summary>Indirizzo dell'account "autorizzato" restituito dallo scambio del code.</summary>
+    public string ConnectedEmail { get; set; } = "nuova@example.com";
 
-    public Task<ConnectedMailbox> ExchangeCodeAsync(string code, CancellationToken cancellationToken) =>
-        Task.FromResult(new ConnectedMailbox("nuova@example.com", "refresh-" + code));
+    /// <summary>Scopi degli scambi ricevuti, in ordine.</summary>
+    public List<OAuthPurpose> ExchangedPurposes { get; } = [];
+
+    public string BuildAuthorizationUrl(string state, OAuthPurpose purpose) =>
+        $"https://accounts.example/consent?purpose={purpose}&state=" + Uri.EscapeDataString(state);
+
+    public Task<ConnectedMailbox> ExchangeCodeAsync(string code, OAuthPurpose purpose, CancellationToken cancellationToken)
+    {
+        ExchangedPurposes.Add(purpose);
+        return Task.FromResult(new ConnectedMailbox(ConnectedEmail, $"refresh-{purpose}-{code}"));
+    }
 }
 
 /// <summary>Host di test dell'API: ambiente Testing, impostazioni fittizie, DB InMemory, nessun servizio in background.</summary>
@@ -50,6 +61,8 @@ public sealed class MailroomApiFactory : WebApplicationFactory<Program>
     public RecordingRunDispatcher Dispatcher { get; } = new();
 
     public FakeMailboxLock Lock { get; } = new();
+
+    public FakeGmailAuthorizer Authorizer { get; } = new();
 
     /// <summary>Nuovo contesto sul DB InMemory dell'host, per preparare o verificare i dati.</summary>
     public MailroomDbContext NewContext() => new(
@@ -86,7 +99,7 @@ public sealed class MailroomApiFactory : WebApplicationFactory<Program>
             services.RemoveAll<IHostedService>();
             services.AddSingleton<IMailboxLock>(Lock);
             services.AddSingleton<IRunDispatcher>(Dispatcher);
-            services.AddSingleton<IGmailAuthorizer, FakeGmailAuthorizer>();
+            services.AddSingleton<IGmailAuthorizer>(Authorizer);
         });
     }
 

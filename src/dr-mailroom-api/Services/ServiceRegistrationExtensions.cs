@@ -21,6 +21,7 @@ public static class ServiceRegistrationExtensions
         services.AddScoped<IValidator<FilterPreviewRequest>, FilterPreviewRequestValidator>();
         services.AddScoped<IValidator<ReapplyRequest>, ReapplyRequestValidator>();
         services.AddScoped<IValidator<StartRunRequest>, StartRunRequestValidator>();
+        services.AddScoped<IValidator<TrashSenderRequest>, TrashSenderRequestValidator>();
         services.AddScoped<IValidator<MailboxFilter>, MailboxFilterValidator>();
         services.AddScoped<IValidator<FilterListFilter>, FilterListFilterValidator>();
         services.AddScoped<IValidator<RunFilter>, RunFilterValidator>();

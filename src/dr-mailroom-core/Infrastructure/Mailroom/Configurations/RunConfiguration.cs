@@ -13,6 +13,7 @@ public class RunConfiguration : IEntityTypeConfiguration<Run>
         builder.HasKey(e => e.Id);
         builder.Property(e => e.RequestedProcesses).HasMaxLength(ColumnLengths.RequestedProcesses);
         builder.Property(e => e.ErrorSummary).HasMaxLength(ColumnLengths.ErrorText);
+        builder.Property(e => e.SenderAddress).HasMaxLength(ColumnLengths.EmailAddress);
         builder.HasIndex(e => new { e.MailboxId, e.StartedAtUtc });
 
         builder.HasOne(e => e.Mailbox)

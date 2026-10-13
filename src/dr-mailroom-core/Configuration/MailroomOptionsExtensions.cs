@@ -16,6 +16,12 @@ public static class MailroomOptionsExtensions
             .Validate(o => IsValidCron(o.Cron), $"{ScheduleOptions.SectionName}:Cron non è un'espressione cron Quartz valida")
             .ValidateOnStart();
 
+        services.AddOptions<RetentionOptions>()
+            .Bind(configuration.GetSection(RetentionOptions.SectionName))
+            .ValidateDataAnnotations()
+            .Validate(o => IsValidCron(o.PurgeCron), $"{RetentionOptions.SectionName}:PurgeCron non è un'espressione cron Quartz valida")
+            .ValidateOnStart();
+
         AddValidated<ProcessingOptions>(services, configuration, ProcessingOptions.SectionName);
         AddValidated<FilteringOptions>(services, configuration, FilteringOptions.SectionName);
         AddValidated<AttachmentsOptions>(services, configuration, AttachmentsOptions.SectionName);

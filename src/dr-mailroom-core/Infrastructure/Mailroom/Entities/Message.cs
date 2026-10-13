@@ -48,5 +48,9 @@ public class Message
     [Column("IsSent")]
     public bool IsSent { get; set; }
 
+    /// <summary>Spostata nel cestino di Gmail da dr-mailroom: esclusa da statistiche ed elenchi, purgata dopo la ritenzione.</summary>
+    [Column("TrashedAtUtc")]
+    public DateTime? TrashedAtUtc { get; set; }
+
     public Mailbox? Mailbox { get; set; }
 }

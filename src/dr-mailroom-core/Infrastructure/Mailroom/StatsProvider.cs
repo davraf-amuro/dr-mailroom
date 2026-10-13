@@ -129,12 +129,12 @@ public class StatsProvider(MailroomDbContext context, ILogger<StatsProvider> log
                     .FirstOrDefault()));
     }
 
-    /// <summary>Mail per anno di ricezione, dal più recente; con senderAddress solo quel mittente (uguaglianza).</summary>
+    /// <summary>Mail per anno di ricezione, dal più recente; con senderAddress solo quel mittente (uguaglianza). Senza le cestinate.</summary>
     public async Task<List<YearStat>> GetYearStatAsync(int mailboxId, string? senderAddress, CancellationToken cancellationToken)
     {
         logger.LogInformation("Mail per anno casella {MailboxId}, mittente {SenderAddress}", mailboxId, senderAddress);
 
-        var messages = context.Messages.Where(m => m.MailboxId == mailboxId);
+        var messages = context.Messages.Where(m => m.MailboxId == mailboxId && m.TrashedAtUtc == null);
         if (senderAddress is not null)
         {
             messages = messages.Where(m => m.SenderAddress == senderAddress);
@@ -149,10 +149,13 @@ public class StatsProvider(MailroomDbContext context, ILogger<StatsProvider> log
             .ToListAsync(cancellationToken);
     }
 
-    /// <summary>Mail della casella, eventualmente limitate a un anno (intervallo su ReceivedAtUtc: usa l'indice).</summary>
+    /// <summary>
+    /// Mail della casella non cestinate, eventualmente limitate a un anno (intervallo su ReceivedAtUtc: usa l'indice,
+    /// che include TrashedAtUtc).
+    /// </summary>
     private IQueryable<Message> MessagesOf(int mailboxId, int? year)
     {
-        var messages = context.Messages.Where(m => m.MailboxId == mailboxId);
+        var messages = context.Messages.Where(m => m.MailboxId == mailboxId && m.TrashedAtUtc == null);
         if (year is int y)
         {
             var from = new DateTime(y, 1, 1, 0, 0, 0, DateTimeKind.Unspecified);

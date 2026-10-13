@@ -165,6 +165,41 @@ public class MailboxProvider(
         return true;
     }
 
+    /// <summary>
+    /// Salva (o azzera, con null) il refresh token del cestino (D-T1 bis), con un contesto dedicato: lo usa anche il
+    /// giro di cestino quando Google revoca il token. Il token di lettura non cambia. False se la casella non esiste.
+    /// </summary>
+    public async Task<bool> SetTrashTokenAsync(int mailboxId, string? encryptedTrashRefreshToken, CancellationToken cancellationToken)
+    {
+        await using var db = await contextFactory.CreateDbContextAsync(cancellationToken);
+
+        // Leggo da DB la casella con tracking, in un contesto pulito
+        var mailbox = await db.Mailboxes.AsTracking().FirstOrDefaultAsync(m => m.Id == mailboxId, cancellationToken);
+        if (mailbox is null)
+        {
+            return false;
+        }
+
+        mailbox.EncryptedTrashRefreshToken = encryptedTrashRefreshToken;
+
+        // Scrivo su DB il solo token del cestino
+        await db.SaveChangesAsync(cancellationToken);
+
+        logger.LogInformation(
+            "Casella {MailboxId}: token del cestino {Action}", mailboxId, encryptedTrashRefreshToken is null ? "azzerato" : "salvato");
+        return true;
+    }
+
+    /// <summary>Token cifrato del cestino della casella, null se non autorizzato o se la casella non esiste.</summary>
+    public async Task<string?> GetTrashTokenAsync(int mailboxId, CancellationToken cancellationToken)
+    {
+        // Leggo da DB il solo token del cestino
+        return await context.Mailboxes
+            .Where(m => m.Id == mailboxId)
+            .Select(m => m.EncryptedTrashRefreshToken)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
     /// <summary>Eliminazione logica (D18): stato Deleted e refresh token rimosso; i dati restano. False se non esiste.</summary>
     public async Task<bool> MarkDeletedAsync(int mailboxId, CancellationToken cancellationToken)
     {
@@ -178,6 +213,7 @@ public class MailboxProvider(
 
         mailbox.Status = MailboxStatus.Deleted;
         mailbox.EncryptedRefreshToken = null;
+        mailbox.EncryptedTrashRefreshToken = null;
 
         // Scrivo su DB l'eliminazione logica
         await context.SaveChangesAsync(cancellationToken);

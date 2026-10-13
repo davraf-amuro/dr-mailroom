@@ -239,6 +239,10 @@ namespace dr_mailroom_core.Infrastructure.Mailroom.Migrations
                         .HasColumnType("nvarchar(max)")
                         .HasColumnName("EncryptedRefreshToken");
 
+                    b.Property<string>("EncryptedTrashRefreshToken")
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("EncryptedTrashRefreshToken");
+
                     b.Property<decimal?>("HistoryId")
                         .HasColumnType("decimal(20,0)")
                         .HasColumnName("HistoryId");
@@ -334,6 +338,10 @@ namespace dr_mailroom_core.Infrastructure.Mailroom.Migrations
                         .HasColumnType("nvarchar(64)")
                         .HasColumnName("ThreadId");
 
+                    b.Property<DateTime?>("TrashedAtUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("TrashedAtUtc");
+
                     b.Property<int>("YearMonth")
                         .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("int")
@@ -342,12 +350,15 @@ namespace dr_mailroom_core.Infrastructure.Mailroom.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("TrashedAtUtc")
+                        .HasFilter("[TrashedAtUtc] IS NOT NULL");
+
                     b.HasIndex("MailboxId", "GmailMessageId")
                         .IsUnique();
 
                     b.HasIndex("MailboxId", "SenderAddress", "ReceivedAtUtc");
 
-                    SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("MailboxId", "SenderAddress", "ReceivedAtUtc"), new[] { "Subject", "IsSent" });
+                    SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("MailboxId", "SenderAddress", "ReceivedAtUtc"), new[] { "Subject", "IsSent", "TrashedAtUtc" });
 
                     b.HasIndex("MailboxId", "SenderAddress", "YearMonth");
 
@@ -438,6 +449,11 @@ namespace dr_mailroom_core.Infrastructure.Mailroom.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)")
                         .HasColumnName("RequestedProcesses");
+
+                    b.Property<string>("SenderAddress")
+                        .HasMaxLength(320)
+                        .HasColumnType("nvarchar(320)")
+                        .HasColumnName("SenderAddress");
 
                     b.Property<DateTime>("StartedAtUtc")
                         .HasColumnType("datetime2")

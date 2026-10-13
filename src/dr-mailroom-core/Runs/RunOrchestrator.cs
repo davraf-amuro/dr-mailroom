@@ -12,7 +12,8 @@ namespace dr_mailroom_core.Runs;
 
 /// <summary>
 /// Esegue un giro su una casella: lock → ingestione (produttore) → coda FIFO → filtri e processi in parallelo (giro normale),
-/// oppure lock → messaggi già indicizzati del filtro (produttore) → coda → processi richiesti (riapplica, D13).
+/// oppure lock → messaggi già indicizzati del filtro (produttore) → coda → processi richiesti (riapplica, D13),
+/// oppure lock → mail del mittente → cestino di Gmail a blocchi con il token separato (cestino, D-T1 bis).
 /// Una sola sessione Gmail per giro, condivisa da produttore e consumatori: un solo limitatore di quota per casella.
 /// Non rilancia mai: l'esito finisce su Run e Mailbox. Un giro annullato (API o arresto del servizio) chiude Cancelled.
 /// </summary>
@@ -25,6 +26,7 @@ public class RunOrchestrator(
     MessageProvider messageProvider,
     MessageProcessingQueue processingQueue,
     IGmailReader gmailReader,
+    IGmailTrasher gmailTrasher,
     ITokenProtector tokenProtector,
     RunCancellationRegistry cancellationRegistry,
     ILogger<RunOrchestrator> logger)
@@ -43,6 +45,12 @@ public class RunOrchestrator(
 
     /// <summary>Messaggio registrato sul giro annullato dall'arresto del servizio.</summary>
     public const string ServiceStoppingMessage = "Giro annullato dall'arresto del servizio";
+
+    /// <summary>Messaggio registrato sul giro di cestino quando la casella non ha il token del cestino.</summary>
+    public const string TrashNotAuthorizedMessage = "Cestino non autorizzato per la casella: autorizzalo dalla vista del mittente";
+
+    /// <summary>Messaggio registrato sul giro di cestino quando Google revoca il token del cestino (la lettura non cambia).</summary>
+    public const string TrashTokenRevokedMessage = "Autorizzazione del cestino revocata da Google: va ripetuta";
 
     /// <summary>Separatore dei processi in Run.RequestedProcesses.</summary>
     public const char ProcessSeparator = ',';
@@ -95,6 +103,13 @@ public class RunOrchestrator(
         {
             logger.LogInformation("Giro {RunId}: casella {MailboxId} occupata, giro saltato", runId, run.MailboxId);
             await runProvider.FinishRunAsync(runId, RunStatus.Skipped, null, 0, 0, MailboxBusyMessage, cancellationToken);
+            return;
+        }
+
+        // Il cestino ha un esito tutto suo: non è un giro di lettura e non tocca LastRunAtUtc né LastError della casella
+        if (run.Trigger == RunTrigger.TrashSender)
+        {
+            await TrashSenderAsync(run, cancellationToken);
             return;
         }
 
@@ -188,6 +203,64 @@ public class RunOrchestrator(
             },
             cancellationToken);
         return ToRunOutcome(candidates.Count, outcome);
+    }
+
+    /// <summary>
+    /// Cestino di un mittente: le mail ricevute e non ancora cestinate vanno nel cestino di Gmail a blocchi di
+    /// <see cref="GmailConstants.MaxBatchModifyIds"/>; ogni blocco riuscito si marca subito nel DB e aggiorna i contatori
+    /// (MessagesRead = trovate, MessagesProcessed = cestinate). Un annullamento si ferma tra un blocco e l'altro.
+    /// invalid_grant azzera il solo token del cestino: la casella resta leggibile.
+    /// </summary>
+    private async Task TrashSenderAsync(Run run, CancellationToken cancellationToken)
+    {
+        var sender = run.SenderAddress ?? throw new InvalidOperationException($"Giro di cestino {run.Id} senza mittente");
+        var found = 0;
+        var trashed = 0;
+        try
+        {
+            // Leggo da DB il token del cestino: senza autorizzazione il giro non tocca Gmail
+            var encryptedTrashToken = await mailboxProvider.GetTrashTokenAsync(run.MailboxId, cancellationToken);
+            if (string.IsNullOrEmpty(encryptedTrashToken))
+            {
+                logger.LogWarning("Giro {RunId}: cestino non autorizzato per la casella {MailboxId}", run.Id, run.MailboxId);
+                await runProvider.FinishRunAsync(run.Id, RunStatus.Failed, 0, 0, 1, TrashNotAuthorizedMessage, cancellationToken);
+                return;
+            }
+
+            // Leggo da DB le mail del mittente ancora da cestinare
+            var candidates = await messageProvider.GetTrashCandidatesAsync(run.MailboxId, sender, cancellationToken);
+            found = candidates.Count;
+
+            using var session = gmailTrasher.OpenSession(tokenProtector.Unprotect(encryptedTrashToken));
+            foreach (var chunk in candidates.Chunk(GmailConstants.MaxBatchModifyIds))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                await session.TrashAsync([.. chunk.Select(c => c.GmailMessageId)], cancellationToken);
+
+                // Scrivo su DB: blocco marcato cestinato e avanzamento del giro. Senza token: Gmail l'ha già cestinato,
+                // un annullamento arrivato nel frattempo non deve lasciare il DB indietro rispetto a Gmail
+                await messageProvider.MarkTrashedAsync([.. chunk.Select(c => c.Id)], DateTime.UtcNow, CancellationToken.None);
+                trashed += chunk.Length;
+                await runProvider.UpdateProgressAsync(run.Id, found, trashed, CancellationToken.None);
+            }
+
+            logger.LogInformation(
+                "Giro {RunId}: {Trashed} mail su {Found} spostate nel cestino nella casella {MailboxId}", run.Id, trashed, found, run.MailboxId);
+            await runProvider.FinishRunAsync(run.Id, RunStatus.Completed, found, trashed, 0, null, cancellationToken);
+        }
+        catch (TokenRevokedException ex)
+        {
+            logger.LogError(ex, "Giro {RunId}: token del cestino della casella {MailboxId} revocato", run.Id, run.MailboxId);
+
+            // Scrivo su DB: via il solo token del cestino, quello di lettura resta
+            await mailboxProvider.SetTrashTokenAsync(run.MailboxId, null, cancellationToken);
+            await runProvider.FinishRunAsync(run.Id, RunStatus.Failed, found, trashed, 1, TrashTokenRevokedMessage, cancellationToken);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogError(ex, "Giro di cestino {RunId} sulla casella {MailboxId} fallito", run.Id, run.MailboxId);
+            await runProvider.FinishRunAsync(run.Id, RunStatus.Failed, found, trashed, 1, ex.Message, cancellationToken);
+        }
     }
 
     /// <summary>Legge la casella e verifica che sia collegata (refresh token presente).</summary>

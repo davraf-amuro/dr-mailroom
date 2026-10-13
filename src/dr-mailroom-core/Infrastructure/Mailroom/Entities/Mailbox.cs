@@ -17,6 +17,13 @@ public class Mailbox
     [Column("EncryptedRefreshToken")]
     public string? EncryptedRefreshToken { get; set; }
 
+    /// <summary>
+    /// Refresh token OAuth con scope gmail.modify, cifrato come il precedente (D-T1 bis): lo usa solo il cestino.
+    /// Null finché l'utente non autorizza il cestino della casella; la lettura non lo vede mai.
+    /// </summary>
+    [Column("EncryptedTrashRefreshToken")]
+    public string? EncryptedTrashRefreshToken { get; set; }
+
     /// <summary>Base dell'incrementale: historyId catturato all'inizio del backfill o dopo l'ultimo giro riuscito.</summary>
     [Column("HistoryId")]
     public ulong? HistoryId { get; set; }
