@@ -1,6 +1,6 @@
 # Piano: Mail di un filtro con download del contenuto + "Elimina tutte" fino a una data
 Data: 2026-10-13
-Stato: IN CORSO
+Stato: COMPLETATO
 
 ## Obiettivo
 Per ogni filtro: tabella paginata delle mail corrispondenti, con download per riga del contenuto (.eml originale e .txt leggibile) salvato in lavorazione da un nuovo processo "Salva contenuto". In più, "Elimina tutte" del mittente accetta una data facoltativa: cestina le mail ricevute fino a quel giorno compreso e tiene le successive.
@@ -291,7 +291,7 @@ Non usate: la numerazione resta libera per divergenze o fasi da aggiungere su ri
 - [x] Senza data, "Elimina tutte" si comporta come prima (test esistenti verdi)
 - [x] Documentazione aggiornata (Fase 8)
 - [x] Verifica a freddo con `/dr-verify-plan`
-- [ ] **Prova reale, con l'utente**:
+- [x] **Prova reale, con l'utente**:
   - aggiungere "Salva contenuto" a un filtro dei codici sconto, "Archivia le mancanti", aprire il popup "Testo" e copiare il codice, scaricare .eml e .txt di una mail;
   - "Elimina tutte" con una data su un mittente di prova: in Gmail vanno nel cestino solo le mail fino a quel giorno.
 
@@ -352,3 +352,5 @@ Non usate: la numerazione resta libera per divergenze o fasi da aggiungere su ri
   - API fermata, `dotnet ef database update` applicato (`ContentArchive` presente nell'elenco), API riavviata;
   - poi `docker compose up -d --build` nei due repo. La build parte dalla cartella di lavoro, **senza commit**;
   - controlli: health 200, i due endpoint nuovi presenti in OpenAPI, la vista `FilterMessagesView` servita dal container FE.
+- **Commit e push** (richiesti dall'utente): `3f318a2` backend, `ac12d66` FE, branch `feat/mail-filtro-contenuto`.
+- **Prova reale (2026-10-14)**: superata, confermata dall'utente.
