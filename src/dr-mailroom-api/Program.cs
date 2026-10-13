@@ -13,6 +13,7 @@ using dr_mailroom_core.Gmail;
 using dr_mailroom_core.Infrastructure.Mailroom;
 using dr_mailroom_core.Runs;
 using dr_mailroom_core.Security;
+using Microsoft.Net.Http.Headers;
 using Scalar.AspNetCore;
 using Serilog;
 using Serilog.Events;
@@ -81,7 +82,9 @@ var extraCorsOrigins = builder.Configuration
 builder.Services.AddCors(options => options.AddDefaultPolicy(policy => policy
     .WithOrigins([frontendBaseUrl.TrimEnd('/'), .. extraCorsOrigins.Select(origin => origin.TrimEnd('/'))])
     .AllowAnyHeader()
-    .AllowAnyMethod()));
+    .AllowAnyMethod()
+    // Il frontend legge il nome del file scaricato (contenuto archiviato della mail) da un'altra origine
+    .WithExposedHeaders(HeaderNames.ContentDisposition)));
 
 builder.Services.AddApiVersioning(options =>
 {

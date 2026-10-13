@@ -146,6 +146,15 @@ public static class ValidationRules
         return parsed;
     }
 
+    /// <summary>Data limite "ricevute prima di" facoltativa: se c'è, non può essere il valore minimo (data assente mascherata).</summary>
+    public static void ReceivedBefore(IDictionary<string, string[]> errors, DateTime? value)
+    {
+        if (value is { } date && date == DateTime.MinValue)
+        {
+            Add(errors, "receivedBeforeUtc", "La data limite non è valida");
+        }
+    }
+
     /// <summary>Sottocartella relativa: niente percorso assoluto, niente "..", niente caratteri non validi, max 200.</summary>
     public static void AttachmentSubfolder(IDictionary<string, string[]> errors, string? value, bool required)
     {

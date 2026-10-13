@@ -22,6 +22,9 @@ public class SenderMessageFilter
     /// <summary>Testo cercato nell'oggetto (contiene).</summary>
     public string? Search { get; set; }
 
+    /// <summary>Solo le mail ricevute prima di questo istante UTC (estremo escluso): conteggio di "Elimina tutte" fino a una data.</summary>
+    public DateTime? ReceivedBeforeUtc { get; set; }
+
     /// <summary>Verso dell'ordinamento per data di ricezione; default Desc (dalla più recente).</summary>
     public SortDirection? SortDir { get; set; }
 
@@ -35,5 +38,6 @@ public class SenderMessageFilter
         e => e.TrashedAtUtc == null
           && (MailboxId == null || e.MailboxId == MailboxId)
           && (SenderAddress == null || e.SenderAddress == SenderAddress)
-          && (Search == null || (e.Subject != null && e.Subject.Contains(Search)));
+          && (Search == null || (e.Subject != null && e.Subject.Contains(Search)))
+          && (ReceivedBeforeUtc == null || e.ReceivedAtUtc < ReceivedBeforeUtc);
 }

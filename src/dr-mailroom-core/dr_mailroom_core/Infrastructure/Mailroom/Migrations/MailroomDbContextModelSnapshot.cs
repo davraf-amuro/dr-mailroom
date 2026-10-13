@@ -85,6 +85,48 @@ namespace dr_mailroom_core.Infrastructure.Mailroom.Migrations
                     b.ToTable("AlertFilter");
                 });
 
+            modelBuilder.Entity("dr_mailroom_core.Infrastructure.Mailroom.Entities.ArchivedMessageContent", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("Id");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime>("ArchivedAtUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("ArchivedAtUtc");
+
+                    b.Property<long>("MessageId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("MessageId");
+
+                    b.Property<string>("RelativePath")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasColumnName("RelativePath");
+
+                    b.Property<string>("Sha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nchar(64)")
+                        .HasColumnName("Sha256")
+                        .IsFixedLength();
+
+                    b.Property<long>("SizeBytes")
+                        .HasColumnType("bigint")
+                        .HasColumnName("SizeBytes");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MessageId")
+                        .IsUnique();
+
+                    b.ToTable("ArchivedMessageContent");
+                });
+
             modelBuilder.Entity("dr_mailroom_core.Infrastructure.Mailroom.Entities.ExtractedAttachment", b =>
                 {
                     b.Property<long>("Id")
@@ -465,6 +507,10 @@ namespace dr_mailroom_core.Infrastructure.Mailroom.Migrations
                         .HasColumnType("nvarchar(30)")
                         .HasColumnName("Status");
 
+                    b.Property<DateTime?>("TrashReceivedBeforeUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("TrashReceivedBeforeUtc");
+
                     b.Property<string>("Trigger")
                         .IsRequired()
                         .HasMaxLength(30)
@@ -552,6 +598,17 @@ namespace dr_mailroom_core.Infrastructure.Mailroom.Migrations
                     b.Navigation("Alert");
 
                     b.Navigation("Filter");
+                });
+
+            modelBuilder.Entity("dr_mailroom_core.Infrastructure.Mailroom.Entities.ArchivedMessageContent", b =>
+                {
+                    b.HasOne("dr_mailroom_core.Infrastructure.Mailroom.Entities.Message", "Message")
+                        .WithMany()
+                        .HasForeignKey("MessageId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Message");
                 });
 
             modelBuilder.Entity("dr_mailroom_core.Infrastructure.Mailroom.Entities.ExtractedAttachment", b =>

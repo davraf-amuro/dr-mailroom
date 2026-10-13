@@ -21,4 +21,7 @@ public static class ServiceMessages
     public const string MailboxTokenRevoked = "La casella ha il token revocato: va ricollegata";
     public const string TrashNotAuthorized = "Il cestino della casella non è autorizzato: serve il consenso Google";
     public const string NothingToTrash = "Nessuna mail del mittente da spostare nel cestino";
+    public const string ContentNotArchived = "La mail non ha il contenuto archiviato: riapplica un filtro con il processo ContentArchive";
+    public const string ContentFileMissing = "Il file del contenuto archiviato non è più sul disco";
+    public const string ContentUnreadable = "Il contenuto archiviato non è un messaggio leggibile";
 }

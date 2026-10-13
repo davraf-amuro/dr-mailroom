@@ -43,6 +43,14 @@ public static class FiltersMapping
             .WithSummary("Dettaglio filtro")
             .WithDescription("Filtro completo con i processi associati.");
 
+        group.MapGet("/{id:int}/messages", GetMessagesHandlerAsync)
+            .Produces<FilterMessagePageDto>(StatusCodes.Status200OK)
+            .Produces<HttpValidationProblemDetails>(StatusCodes.Status400BadRequest)
+            .Produces<ProblemDetails>(StatusCodes.Status404NotFound)
+            .WithName("GetFilterMessageList")
+            .WithSummary("Mail di un filtro")
+            .WithDescription("Mail già indicizzate e non cestinate che corrispondono al filtro (stesso confronto dell'anteprima, anche se il filtro è sospeso). Paginata (pageSize 1–100, default 25), ordinata per data di ricezione (sortDir Asc|Desc, default Desc). Ogni riga dice se il contenuto è archiviato (isArchived, processo ContentArchive); missingArchiveCount conta le mail senza contenuto su tutte le pagine, hasContentArchive dice se il filtro ha il processo e quindi se la riapplica può archiviarle. 404 se il filtro non esiste; nessuna mail → 200 con totalCount 0.");
+
         group.MapPost("/", PostHandlerAsync)
             .Produces<FilterDto>(StatusCodes.Status201Created)
             .Produces<HttpValidationProblemDetails>(StatusCodes.Status400BadRequest)
@@ -118,6 +126,20 @@ public static class FiltersMapping
         await service.GetByIdAsync(id, cancellationToken) is { } filter
             ? TypedResults.Ok(filter)
             : EndpointResults.NotFound(ServiceMessages.FilterNotFound);
+
+    /// <summary>Mail del filtro: 400 su paginazione non valida, 404 se il filtro non esiste.</summary>
+    private static async Task<IResult> GetMessagesHandlerAsync(
+        int id, [AsParameters] FilterMessageFilter query, IValidator<FilterMessageFilter> validator, FilterService service, CancellationToken cancellationToken)
+    {
+        var validation = validator.Validate(query);
+        if (!validation.IsValid)
+        {
+            return TypedResults.ValidationProblem(validation.Errors);
+        }
+
+        var result = await service.GetMessagesAsync(id, query, cancellationToken);
+        return result.Outcome == ServiceOutcome.Ok ? TypedResults.Ok(result.Value) : EndpointResults.Failure(result);
+    }
 
     /// <summary>Creazione: validazione del body, poi controlli sulla casella nel servizio.</summary>
     private static async Task<IResult> PostHandlerAsync(

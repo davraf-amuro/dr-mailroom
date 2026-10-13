@@ -22,6 +22,7 @@ public class SenderMessageFilterValidator : IValidator<SenderMessageFilter>
 
         ValidationRules.MaxLength(errors, "senderAddress", input.SenderAddress?.Trim(), ColumnLengths.EmailAddress);
         ValidationRules.MaxLength(errors, "search", input.Search, ColumnLengths.Subject);
+        ValidationRules.ReceivedBefore(errors, input.ReceivedBeforeUtc);
 
         if (input.Page is < 1)
         {

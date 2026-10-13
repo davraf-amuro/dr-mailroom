@@ -153,28 +153,34 @@ public class MessageProvider(MailroomDbContext context, ILogger<MessageProvider>
 
     /// <summary>
     /// Mail da cestinare per "Elimina tutte" (D-T1 bis): ricevute dal mittente nella casella (non inviate) e non ancora
-    /// cestinate, dalla più vecchia. Solo Id e id Gmail.
+    /// cestinate, dalla più vecchia. Con receivedBeforeUtc solo quelle ricevute prima di quell'istante (estremo escluso).
+    /// Solo Id e id Gmail.
     /// </summary>
-    public async Task<List<TrashCandidate>> GetTrashCandidatesAsync(int mailboxId, string senderAddress, CancellationToken cancellationToken)
+    public async Task<List<TrashCandidate>> GetTrashCandidatesAsync(
+        int mailboxId, string senderAddress, DateTime? receivedBeforeUtc, CancellationToken cancellationToken)
     {
-        var sender = senderAddress.Trim().ToLowerInvariant();
-
         // Leggo da DB le mail del mittente ancora da cestinare
-        return await context.Messages
-            .Where(m => m.MailboxId == mailboxId && m.SenderAddress == sender && !m.IsSent && m.TrashedAtUtc == null)
+        return await TrashCandidates(mailboxId, senderAddress, receivedBeforeUtc)
             .OrderBy(m => m.Id)
             .Select(m => new TrashCandidate(m.Id, m.GmailMessageId))
             .ToListAsync(cancellationToken);
     }
 
     /// <summary>Quante mail andrebbero nel cestino con "Elimina tutte": stesso criterio di GetTrashCandidatesAsync.</summary>
-    public async Task<int> CountTrashCandidatesAsync(int mailboxId, string senderAddress, CancellationToken cancellationToken)
+    public async Task<int> CountTrashCandidatesAsync(
+        int mailboxId, string senderAddress, DateTime? receivedBeforeUtc, CancellationToken cancellationToken)
+    {
+        // Leggo da DB il numero di mail del mittente ancora da cestinare
+        return await TrashCandidates(mailboxId, senderAddress, receivedBeforeUtc).CountAsync(cancellationToken);
+    }
+
+    /// <summary>Criterio unico di "Elimina tutte": mail ricevute dal mittente (non inviate), non cestinate, entro la data se indicata.</summary>
+    private IQueryable<Message> TrashCandidates(int mailboxId, string senderAddress, DateTime? receivedBeforeUtc)
     {
         var sender = senderAddress.Trim().ToLowerInvariant();
-
-        // Leggo da DB il numero di mail del mittente ancora da cestinare
-        return await context.Messages
-            .CountAsync(m => m.MailboxId == mailboxId && m.SenderAddress == sender && !m.IsSent && m.TrashedAtUtc == null, cancellationToken);
+        return context.Messages.Where(m =>
+            m.MailboxId == mailboxId && m.SenderAddress == sender && !m.IsSent && m.TrashedAtUtc == null
+            && (receivedBeforeUtc == null || m.ReceivedAtUtc < receivedBeforeUtc));
     }
 
     /// <summary>Marca come cestinate le mail indicate (già spostate nel cestino di Gmail).</summary>
@@ -196,7 +202,8 @@ public class MessageProvider(MailroomDbContext context, ILogger<MessageProvider>
 
     /// <summary>
     /// Elimina dal DB le mail cestinate prima della soglia; allerte, esecuzioni dei processi e allegati estratti
-    /// seguono in cascata (vincoli ON DELETE CASCADE). I file già estratti su disco restano. Restituisce quante.
+    /// e contenuti archiviati seguono in cascata (vincoli ON DELETE CASCADE). I file già estratti su disco restano;
+    /// quelli dei contenuti archiviati li cancella il job di purga (ArchiveProvider.DeleteFiles). Restituisce quante.
     /// </summary>
     public async Task<int> PurgeTrashedBeforeAsync(DateTime thresholdUtc, CancellationToken cancellationToken)
     {

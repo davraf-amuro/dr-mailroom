@@ -60,6 +60,9 @@ public sealed class MailroomApiFactory : WebApplicationFactory<Program>
 
     public RecordingRunDispatcher Dispatcher { get; } = new();
 
+    /// <summary>Cartella Mailroom:Attachments:RootPath dell'host: i test vi scrivono i contenuti archiviati.</summary>
+    public string AttachmentsRoot => Path.Combine(_dataRoot, "attachments");
+
     public FakeMailboxLock Lock { get; } = new();
 
     public FakeGmailAuthorizer Authorizer { get; } = new();
@@ -83,7 +86,7 @@ public sealed class MailroomApiFactory : WebApplicationFactory<Program>
         builder.UseSetting("ConnectionStrings:MailroomDb", "Server=non-usato;Database=non-usato");
         builder.UseSetting("Mailroom:Gmail:ClientId", "test-client");
         builder.UseSetting("Mailroom:Gmail:ClientSecret", "test-secret");
-        builder.UseSetting("Mailroom:Attachments:RootPath", Path.Combine(_dataRoot, "attachments"));
+        builder.UseSetting("Mailroom:Attachments:RootPath", AttachmentsRoot);
         builder.UseSetting("Mailroom:DataProtection:KeyRingPath", Path.Combine(_dataRoot, "keys"));
         builder.UseSetting("Authentication:ApiKey:ApiKeyValue", ApiKey);
 

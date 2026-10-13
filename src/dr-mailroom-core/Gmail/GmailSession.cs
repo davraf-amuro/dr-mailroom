@@ -162,6 +162,17 @@ public sealed class GmailSession(
         return DecodeBase64Url(body.Data ?? string.Empty);
     }
 
+    /// <summary>Legge il messaggio originale RFC 822 (format=raw): il contenuto di un file .eml.</summary>
+    public async Task<byte[]> GetRawAsync(string gmailMessageId, CancellationToken cancellationToken)
+    {
+        var request = service.Users.Messages.Get(GmailConstants.Me, gmailMessageId);
+        request.Format = UsersResource.MessagesResource.GetRequest.FormatEnum.Raw;
+
+        // Chiamo Gmail: users.messages.get (format=raw)
+        var message = await ExecuteAsync(request.ExecuteAsync, GmailConstants.MessagesGetCost, nameof(GetRawAsync), cancellationToken);
+        return DecodeBase64Url(message.Raw ?? throw new InvalidOperationException($"Messaggio {gmailMessageId} senza contenuto raw"));
+    }
+
     /// <summary>Rilascia il limitatore di quota, il client HTTP di Gmail e quello del flusso OAuth.</summary>
     public void Dispose()
     {

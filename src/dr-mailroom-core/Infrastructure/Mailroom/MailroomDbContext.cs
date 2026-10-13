@@ -19,6 +19,7 @@ public class MailroomDbContext(
     public DbSet<Alert> Alerts => Set<Alert>();
     public DbSet<AlertFilter> AlertFilters => Set<AlertFilter>();
     public DbSet<ExtractedAttachment> ExtractedAttachments => Set<ExtractedAttachment>();
+    public DbSet<ArchivedMessageContent> ArchivedMessageContents => Set<ArchivedMessageContent>();
     public DbSet<SenderStat> SenderStats => Set<SenderStat>();
     public DbSet<SenderMonthlyStat> SenderMonthlyStats => Set<SenderMonthlyStat>();
 

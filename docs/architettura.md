@@ -1,6 +1,6 @@
 # Architettura di dr-mailroom
 
-dr-mailroom è un servizio .NET che legge una o più caselle Gmail **in sola lettura**. Salva le statistiche per mittente e applica filtri sulle mail nuove. Le mail che passano un filtro vengono lavorate da uno o più processi: estrazione degli allegati e allerta.
+dr-mailroom è un servizio .NET che legge una o più caselle Gmail **in sola lettura**. Salva le statistiche per mittente e applica filtri sulle mail nuove. Le mail che passano un filtro vengono lavorate da uno o più processi: estrazione degli allegati, allerta e archiviazione del contenuto.
 
 L'unica eccezione alla sola lettura la decide l'utente: **"Elimina tutte"** sposta nel cestino di Gmail le mail ricevute da un mittente (D21). Usa un permesso Gmail separato, chiesto a parte per ogni casella; la lettura non lo vede mai.
 
@@ -48,7 +48,7 @@ flowchart LR
 
 ---
 
-## Le decisioni del proprietario (D1–D20)
+## Le decisioni del proprietario (D1–D22)
 
 | # | Tema | Decisione |
 |---|------|-----------|
@@ -72,7 +72,8 @@ flowchart LR
 | D18 | Rimozione di una casella | Solo logica: stato `Deleted` e refresh token cancellato. Niente più giri né modifiche ai suoi filtri (409); le statistiche restano. Un indirizzo eliminato non si può ricollegare |
 | D19 | Fermare il lavoro | `POST /api/v1/runs/{id}/cancel` e `POST /api/v1/runs/cancel` annullano uno o tutti i giri in corso, che chiudono `Cancelled`. `POST /api/v1/mailboxes/{id}/pause` mette la casella in pausa (`Disabled`, salvato su DB): niente giri dal cron, giro manuale e riapplica → 409, e annulla i giri in corso. `POST /api/v1/mailboxes/{id}/resume` la riporta `Active`. Il backfill annullato riprende dalla pagina salvata |
 | D20 | Posta inviata | La posta inviata (label Gmail `SENT`, oppure mittente uguale all'indirizzo della casella) si **segnala**, non si esclude: `Message.IsSent`. Conteggi, classifiche e totali restano invariati. I filtri lavorano anche la posta inviata: se un filtro chiede gli allegati delle mail inviate, li salva |
-| D21 | Cestino di un mittente | `POST /api/v1/messages/trash-sender` avvia un giro `TrashSender` che sposta nel **cestino** di Gmail (mai eliminazione definitiva) le mail **ricevute** dal mittente nella casella e non ancora cestinate: `users.messages.batchModify` con la label `TRASH`, a blocchi da 1.000, con ripiego su `users.messages.trash` una mail alla volta. Serve un **secondo token** con scope `gmail.modify` (vedi T1), chiesto con un consenso separato al primo uso (`GET /api/v1/mailboxes/{id}/trash-authorization`) e salvato solo se l'account Google è quello della casella. Nel DB le mail restano con `Message.TrashedAtUtc` e spariscono da elenchi, statistiche, anteprima dei filtri e riapplica; il job `PurgeTrashedMessagesJob` le elimina dopo `Mailroom:Retention:TrashedMessagesDays` giorni (default 180). Il giro di cestino non aggiorna `LastRunAtUtc` né `LastError` della casella. `invalid_grant` sul token del cestino azzera solo quel token: la casella resta leggibile |
+| D21 | Cestino di un mittente | `POST /api/v1/messages/trash-sender` avvia un giro `TrashSender` che sposta nel **cestino** di Gmail (mai eliminazione definitiva) le mail **ricevute** dal mittente nella casella e non ancora cestinate: `users.messages.batchModify` con la label `TRASH`, a blocchi da 1.000, con ripiego su `users.messages.trash` una mail alla volta. Serve un **secondo token** con scope `gmail.modify` (vedi T1), chiesto con un consenso separato al primo uso (`GET /api/v1/mailboxes/{id}/trash-authorization`) e salvato solo se l'account Google è quello della casella. Nel DB le mail restano con `Message.TrashedAtUtc` e spariscono da elenchi, statistiche, anteprima dei filtri e riapplica; il job `PurgeTrashedMessagesJob` le elimina dopo `Mailroom:Retention:TrashedMessagesDays` giorni (default 180). Con `receivedBeforeUtc` facoltativo cestina solo le mail ricevute prima di quell'istante (estremo escluso, salvato su `Run.TrashReceivedBeforeUtc`): il frontend lo usa per "fino al giorno X compreso". Il giro di cestino non aggiorna `LastRunAtUtc` né `LastError` della casella. `invalid_grant` sul token del cestino azzera solo quel token: la casella resta leggibile |
+| D22 | Contenuto della mail | Il processo `ContentArchive` ("Salva contenuto") salva il messaggio originale (Gmail `format=raw`, scope di sola lettura) come `.eml` sotto `Mailroom:Attachments:RootPath`, nella sottocartella del primo filtro corrispondente che ha il processo, con il limite `Mailroom:Attachments:MaxSizeBytes`. Un solo file per mail (`ArchivedMessageContent`, UNIQUE MessageId), idempotente: un messaggio già archiviato si salta. Il testo leggibile **non si salva**: `GET /api/v1/messages/{id}/content?format=txt` lo ricava dal `.eml` a ogni richiesta (MimeKit), così un miglioramento della conversione vale anche per le mail già archiviate. `GET /api/v1/filters/{id}/messages` elenca le mail di un filtro con lo stato di archiviazione; le mail precedenti al processo si archiviano con la riapplica limitata a `ContentArchive`. Quando la purga elimina una mail cestinata, cancella anche il suo `.eml` dal disco (gli allegati estratti invece restano) |
 
 ---
 
@@ -126,7 +127,7 @@ Lo scheduler è Quartz.NET, registrato in `SchedulingExtensions.AddMailroomSched
 |---|---|---|
 | `ScheduledRunJob` | a ogni scatto del cron `Mailroom:Schedule:Cron` (default `0 0/15 * * * ?`, ogni 15 minuti) | chiama `ScheduledRunner.RunAllAsync`: un giro per ogni casella attiva |
 | `OnDemandRunJob` | solo quando `QuartzRunDispatcher` lo invoca con `TriggerJob`; non ha un trigger proprio | esegue il giro indicato dal `RunId` nel `JobDataMap` (giro manuale, riapplica o cestino di un mittente) |
-| `PurgeTrashedMessagesJob` | a ogni scatto del cron `Mailroom:Retention:PurgeCron` (default `0 30 3 * * ?`, ogni giorno alle 03:30) | elimina dal DB le mail cestinate da più di `Mailroom:Retention:TrashedMessagesDays` giorni; allerte, esecuzioni dei processi e allegati estratti seguono in cascata, i file su disco restano |
+| `PurgeTrashedMessagesJob` | a ogni scatto del cron `Mailroom:Retention:PurgeCron` (default `0 30 3 * * ?`, ogni giorno alle 03:30) | elimina dal DB le mail cestinate da più di `Mailroom:Retention:TrashedMessagesDays` giorni; allerte, esecuzioni dei processi, allegati estratti e contenuti archiviati seguono in cascata. Cancella dal disco i `.eml` archiviati di quelle mail (percorsi letti prima della DELETE, sempre sotto la root); i file degli allegati restano |
 
 - `ScheduledRunJob` ha `[DisallowConcurrentExecution]`: se il giro precedente dura più di 15 minuti, lo scatto successivo aspetta invece di sovrapporsi.
 - All'arresto del servizio, `ApplicationStopping` annulla i giri in corso tramite `RunCancellationRegistry`; poi `WaitForJobsToComplete = true` aspetta che si chiudano `Cancelled`. Senza l'annullamento Quartz aspetterebbe un giro che non si ferma, fino a essere ucciso.
@@ -300,12 +301,13 @@ sequenceDiagram
 | `Mailbox` | EmailAddress, EncryptedRefreshToken, HistoryId (`decimal(20,0)`), BackfillPageToken, BackfillCompleted, MessagesTotal (totale Gmail da `getProfile`, letto all'avvio e alla ripresa del backfill: denominatore dell'avanzamento), Status (Active / TokenRevoked / Disabled = in pausa / Deleted), LastRunAtUtc, LastError, LastErrorRunId (giro che ha registrato `LastError`) | UNIQUE(EmailAddress) |
 | `Message` | MailboxId, GmailMessageId, ThreadId, SenderAddress (minuscolo), SenderName, Subject, ReceivedAtUtc, `YearMonth` (`int` calcolato persistito: `YEAR*100+MONTH`, es. 202610), Labels, HasAttachments, IsSent (posta inviata: label `SENT` o mittente = indirizzo della casella, calcolato in ingestione dalle label complete; D20) | UNIQUE(MailboxId, GmailMessageId); IX(MailboxId, SenderAddress, YearMonth) |
 | `Filter` | MailboxId (null = tutte), Name, SenderAddress, SubjectMatchType (null / StartsWith / Contains / Regex), SubjectValue, AttachmentSubfolder, IsEnabled | CHECK: SubjectMatchType e SubjectValue entrambi valorizzati o entrambi null; IX(SenderAddress) |
-| `FilterProcess` | FilterId, ProcessType (AttachmentExtraction / Alert) | PK(FilterId, ProcessType) |
-| `Run` | MailboxId, Trigger (Scheduled / Manual / Reapply), FilterId e RequestedProcesses (solo Reapply), Status (Running / Completed / Failed / Skipped / Cancelled), StartedAtUtc, EndedAtUtc, MessagesRead, MessagesProcessed, ErrorCount, ErrorSummary | IX(MailboxId, StartedAtUtc) |
+| `FilterProcess` | FilterId, ProcessType (AttachmentExtraction / Alert / ContentArchive) | PK(FilterId, ProcessType) |
+| `Run` | MailboxId, Trigger (Scheduled / Manual / Reapply / TrashSender), FilterId e RequestedProcesses (solo Reapply), SenderAddress e TrashReceivedBeforeUtc (solo TrashSender), Status (Running / Completed / Failed / Skipped / Cancelled), StartedAtUtc, EndedAtUtc, MessagesRead, MessagesProcessed, ErrorCount, ErrorSummary | IX(MailboxId, StartedAtUtc) |
 | `ProcessExecution` | MessageId, ProcessType, Status, Error, ProcessedAtUtc | UNIQUE(MessageId, ProcessType) |
 | `Alert` | MessageId, SenderAddress, Subject, ReceivedAtUtc, CreatedAtUtc, ConsumedAtUtc | UNIQUE(MessageId); IX(ConsumedAtUtc) |
 | `AlertFilter` | AlertId, FilterId | PK(AlertId, FilterId) |
 | `ExtractedAttachment` | MessageId, PartId, OriginalFileName, RelativePath, SizeBytes, Sha256, SavedAtUtc | UNIQUE(MessageId, PartId) |
+| `ArchivedMessageContent` | MessageId, RelativePath (`.eml` relativo alla root degli allegati), SizeBytes, Sha256, ArchivedAtUtc (D22) | UNIQUE(MessageId); FK verso Message in cascata |
 
 Gli enum (Status, Trigger, ProcessType…) sono salvati come **testo**: le tabelle restano leggibili anche da SQL.
 
@@ -352,4 +354,4 @@ erDiagram
 | `HasAttachments` dedotto dal tipo MIME `multipart/mixed` | con `format=metadata` Gmail non elenca le parti: alcune mail con allegati inline possono risultare senza | nessuno necessario: l'estrazione legge sempre le parti reali (`format=full`) |
 | Riapplica e giro manuale verificano la casella e poi la affidano allo scheduler | in una finestra brevissima un altro giro può prendere il lock prima | il giro parte e chiude come `Skipped`, senza effetti sui dati |
 
-*Revisione v2.1 — 2026-10-13 21:35 — claude-opus-5-5*
+*Revisione v2.2 — 2026-10-13 23:05 — claude-opus-5-5*

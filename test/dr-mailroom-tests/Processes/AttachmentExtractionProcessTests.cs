@@ -21,13 +21,12 @@ public sealed class AttachmentExtractionProcessTests : IDisposable
     private readonly string _root = Path.Combine(Path.GetTempPath(), "dr-mailroom-tests", Guid.NewGuid().ToString("N"));
     private readonly string _databaseName = Guid.NewGuid().ToString();
 
-    /// <summary>Rimuove la cartella temporanea del test.</summary>
+    /// <summary>Rimuove la cartella temporanea del test, non la cartella comune: altri test paralleli la stanno usando.</summary>
     public void Dispose()
     {
-        var parent = Path.GetDirectoryName(_root)!;
-        if (Directory.Exists(parent))
+        if (Directory.Exists(_root))
         {
-            Directory.Delete(parent, recursive: true);
+            Directory.Delete(_root, recursive: true);
         }
     }
 

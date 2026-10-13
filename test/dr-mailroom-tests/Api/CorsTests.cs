@@ -52,6 +52,20 @@ public sealed class CorsTests(MailroomApiFactory factory) : IClassFixture<Mailro
     }
 
     [Fact]
+    public async Task ContentDisposition_IsExposed_ToTheFrontendOriginAsync()
+    {
+        var client = CreateClient();
+        using var request = new HttpRequestMessage(HttpMethod.Get, MailboxesUrl);
+        request.Headers.Add("Origin", BaseUrl);
+        request.Headers.Add(MailroomApiFactory.ApiKeyHeader, MailroomApiFactory.ApiKey);
+
+        using var response = await client.SendAsync(request);
+
+        Assert.True(response.Headers.TryGetValues("Access-Control-Expose-Headers", out var exposed));
+        Assert.Contains("Content-Disposition", string.Join(",", exposed), StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task ForeignOrigin_IsRejectedAsync()
     {
         var client = CreateClient(DevOrigin);

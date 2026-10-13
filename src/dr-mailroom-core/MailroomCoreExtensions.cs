@@ -19,6 +19,7 @@ public static class MailroomCoreExtensions
         services.AddScoped<FilterProvider>();
         services.AddScoped<AlertProvider>();
         services.AddScoped<AttachmentProvider>();
+        services.AddScoped<ArchiveProvider>();
         services.AddScoped<ProcessExecutionProvider>();
         services.AddScoped<StatsProvider>();
 
@@ -29,6 +30,7 @@ public static class MailroomCoreExtensions
 
         services.AddScoped<IMessageProcess, AttachmentExtractionProcess>();
         services.AddScoped<IMessageProcess, AlertProcess>();
+        services.AddScoped<IMessageProcess, ContentArchiveProcess>();
 
         services.AddSingleton<IMailboxLock, MailboxLock>();
         services.AddSingleton<RunCancellationRegistry>();

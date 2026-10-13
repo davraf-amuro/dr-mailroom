@@ -89,6 +89,24 @@ public sealed class TrashSenderRunTests : IAsyncDisposable
     }
 
     [Fact]
+    public async Task TrashSender_WithReceivedBefore_TrashesOnlyOlderMailAsync()
+    {
+        await AddMailboxAsync();
+        await AddMessagesAsync(Spammer, 4, "spam-");
+
+        // Estremo escluso: spam-0 (08:00) e spam-1 (08:01) prima, spam-2 (08:02) esattamente al limite resta
+        var limit = new DateTime(2026, 10, 1, 8, 2, 0, DateTimeKind.Utc);
+        var run = await _harness.RunAsync(MailboxId, RunTrigger.TrashSender, senderAddress: Spammer, trashReceivedBeforeUtc: limit);
+
+        Assert.Equal(RunStatus.Completed, run.Status);
+        Assert.Equal(limit, run.TrashReceivedBeforeUtc);
+        Assert.Equal(2, run.MessagesProcessed);
+        Assert.Equal(["spam-0", "spam-1"], Assert.Single(_harness.Trasher.Batches[TrashToken]));
+        var kept = (await MessagesAsync()).Where(m => m.TrashedAtUtc == null).Select(m => m.GmailMessageId);
+        Assert.Equal(["spam-2", "spam-3"], kept);
+    }
+
+    [Fact]
     public async Task TrashSender_DoesNotTouchLastRunNorReadTokenAsync()
     {
         await AddMailboxAsync();

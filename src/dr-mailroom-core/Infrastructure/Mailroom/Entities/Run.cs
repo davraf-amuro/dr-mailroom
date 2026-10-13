@@ -28,6 +28,10 @@ public class Run
     [Column("SenderAddress")]
     public string? SenderAddress { get; set; }
 
+    /// <summary>Estremo escluso del giro di cestino: solo le mail ricevute prima di questo istante; null = tutte.</summary>
+    [Column("TrashReceivedBeforeUtc")]
+    public DateTime? TrashReceivedBeforeUtc { get; set; }
+
     [Column("Status")]
     public RunStatus Status { get; set; } = RunStatus.Running;
 

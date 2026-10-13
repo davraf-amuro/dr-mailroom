@@ -141,6 +141,31 @@ public sealed class FakeGmailSession : IGmailSession
         return Task.FromResult(System.Text.Encoding.UTF8.GetBytes("contenuto " + part.PartId));
     }
 
+    /// <summary>Contenuto raw restituito per ogni messaggio; null = .eml minimale generato dall'id.</summary>
+    public byte[]? RawContent { get; set; }
+
+    /// <summary>Id per cui GetRawAsync deve fallire.</summary>
+    public string? FailOnRawId { get; set; }
+
+    /// <summary>Id letti in raw, nell'ordine.</summary>
+    public List<string> RawRequestedIds { get; } = [];
+
+    public Task<byte[]> GetRawAsync(string gmailMessageId, CancellationToken cancellationToken)
+    {
+        if (gmailMessageId == FailOnRawId)
+        {
+            throw new HttpRequestException("raw non disponibile");
+        }
+
+        lock (_sync)
+        {
+            RawRequestedIds.Add(gmailMessageId);
+        }
+
+        return Task.FromResult(RawContent ?? System.Text.Encoding.UTF8.GetBytes(
+            $"From: fornitore@example.com\r\nSubject: Oggetto {gmailMessageId}\r\nContent-Type: text/plain; charset=utf-8\r\n\r\nCorpo {gmailMessageId}\r\n"));
+    }
+
     public void Dispose()
     {
     }

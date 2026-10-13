@@ -13,6 +13,7 @@ public class FilterService(
     FilterProvider filterProvider,
     MailboxProvider mailboxProvider,
     MessageProvider messageProvider,
+    ArchiveProvider archiveProvider,
     FilterMatcher filterMatcher,
     RunService runService)
 {
@@ -125,6 +126,57 @@ public class FilterService(
             .ToList();
         var compile = MessageSummaryDto.Projection.Compile();
         return ServiceResult<FilterPreviewDto>.Ok(new FilterPreviewDto(matches.Count, matches.Take(PreviewMaxMessages).Select(compile).ToList()));
+    }
+
+    /// <summary>
+    /// Mail già indicizzate e non cestinate che corrispondono al filtro salvato, paginate per data, con lo stato del
+    /// contenuto archiviato. Stesso confronto dell'anteprima, valutato anche se il filtro è disattivato.
+    /// </summary>
+    public async Task<ServiceResult<FilterMessagePageDto>> GetMessagesAsync(int filterId, FilterMessageFilter query, CancellationToken cancellationToken)
+    {
+        // Leggo da DB il filtro con i suoi processi
+        var filter = await filterProvider.GetFilterWithProcessesAsync(filterId, cancellationToken);
+        if (filter is null)
+        {
+            return ServiceResult<FilterMessagePageDto>.NotFound(ServiceMessages.FilterNotFound);
+        }
+
+        // Leggo da DB i messaggi del mittente (nella casella del filtro o in tutte)
+        var candidates = filter.MailboxId is int mailboxId
+            ? await messageProvider.GetMessagesBySenderAsync(mailboxId, filter.SenderAddress, cancellationToken)
+            : await messageProvider.GetMessagesBySenderInAllMailboxesAsync(filter.SenderAddress, cancellationToken);
+
+        // Copia attiva del filtro: la tabella mostra le corrispondenze anche di un filtro sospeso
+        var probe = new Filter
+        {
+            Id = filter.Id,
+            MailboxId = filter.MailboxId,
+            SenderAddress = filter.SenderAddress,
+            SubjectMatchType = filter.SubjectMatchType,
+            SubjectValue = filter.SubjectValue,
+            IsEnabled = true,
+        };
+
+        var matches = candidates.Where(m => filterMatcher.Match(m, [probe]).IsMatch).ToList();
+        var ordered = (query.SortDir ?? SortDirection.Desc) == SortDirection.Asc
+            ? matches.OrderBy(m => m.ReceivedAtUtc).ThenBy(m => m.Id)
+            : matches.OrderByDescending(m => m.ReceivedAtUtc).ThenByDescending(m => m.Id);
+
+        // Leggo da DB quali corrispondenze hanno il contenuto archiviato
+        var senderArchived = await archiveProvider.GetArchivedMessageIdsBySenderAsync(filter.MailboxId, filter.SenderAddress, cancellationToken);
+        var archived = matches.Where(m => senderArchived.Contains(m.Id)).Select(m => m.Id).ToHashSet();
+
+        var page = query.Page ?? FilterMessageFilter.DefaultPage;
+        var pageSize = query.PageSize ?? FilterMessageFilter.DefaultPageSize;
+        var items = ordered
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(m => new FilterMessageDto(m.Id, m.MailboxId, m.Subject, m.ReceivedAtUtc, m.HasAttachments, archived.Contains(m.Id)))
+            .ToList();
+
+        var hasContentArchive = filter.Processes.Any(p => p.ProcessType == ProcessType.ContentArchive);
+        return ServiceResult<FilterMessagePageDto>.Ok(
+            new FilterMessagePageDto(items, page, pageSize, matches.Count, matches.Count - archived.Count, hasContentArchive));
     }
 
     /// <summary>Riapplica il filtro sulle mail già indicizzate: un giro per casella (D16), solo i processi richiesti (D13).</summary>

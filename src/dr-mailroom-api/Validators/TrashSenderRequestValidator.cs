@@ -4,7 +4,7 @@ using dr_mailroom_core.Infrastructure.Mailroom;
 namespace dr_mailroom_api.Validators;
 
 /// <summary>
-/// "Elimina tutte": casella e mittente obbligatori, mittente entro la lunghezza della colonna. Come nella vista del
+/// "Elimina tutte": casella e mittente obbligatori, mittente entro la lunghezza della colonna, data limite facoltativa e valida. Come nella vista del
 /// mittente, niente controllo di formato email: l'indirizzo è quello salvato così come arrivato da Gmail.
 /// </summary>
 public class TrashSenderRequestValidator : IValidator<TrashSenderRequest>
@@ -21,6 +21,7 @@ public class TrashSenderRequestValidator : IValidator<TrashSenderRequest>
         }
 
         ValidationRules.MaxLength(errors, "senderAddress", input.SenderAddress?.Trim(), ColumnLengths.EmailAddress);
+        ValidationRules.ReceivedBefore(errors, input.ReceivedBeforeUtc);
         return ValidationResult.From(errors);
     }
 }

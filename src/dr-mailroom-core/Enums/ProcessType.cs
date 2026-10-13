@@ -5,4 +5,7 @@ public enum ProcessType
 {
     AttachmentExtraction,
     Alert,
+
+    /// <summary>Salva su disco il contenuto originale della mail (.eml) per scaricarlo o leggerlo in dr-mailroom.</summary>
+    ContentArchive,
 }

@@ -20,4 +20,7 @@ public interface IGmailSession : IDisposable
 
     /// <summary>Contenuto binario di un allegato.</summary>
     Task<byte[]> DownloadAttachmentAsync(string gmailMessageId, GmailAttachmentPart part, CancellationToken cancellationToken);
+
+    /// <summary>Messaggio originale RFC 822 (format=raw), salvato come .eml dal processo ContentArchive.</summary>
+    Task<byte[]> GetRawAsync(string gmailMessageId, CancellationToken cancellationToken);
 }

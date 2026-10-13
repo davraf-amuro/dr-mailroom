@@ -1,6 +1,6 @@
 # Piano: "Elimina tutte" le mail di un mittente (cestino Gmail)
 Data: 2026-10-13
-Stato: IN CORSO
+Stato: COMPLETATO — 2026-10-13, chiuso con l'ok dell'utente all'approvazione del piano 2026-10-13-mail-filtro-contenuto (fasi, migrazione, commit e deploy fatti; esito della prova reale non registrato qui)
 
 ## Obiettivo
 Dalla vista delle mail di un mittente (`/stats/messages?mailboxId=…&sender=…`), il pulsante "Elimina tutte":
