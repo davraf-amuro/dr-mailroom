@@ -7,12 +7,59 @@ tools: ['search/codebase']
 # Prompt: Wiki Card — Scheda Operativa (AI Agent)
 
 Genera la scheda operativa per condivisione su wiki interna aziendale.
-Leggi e riporta i **valori reali** da tutti i file di configurazione disponibili.
+Riporta i **valori reali** dei file di configurazione, ma solo dopo la conferma esplicita dell'utente (sezione "Conferma prima di leggere").
 
 > Il file output è sensibile: non committare. Pattern `docs/*-wiki.md` deve essere in `.gitignore`.
 
 ## Output
 - Crea/aggiorna `docs/card-<nome_progetto>-wiki.md`
+
+## Conferma prima di leggere
+
+⛔ Nessun file con valori reali si apre prima di un "sì" esplicito dell'utente.
+
+### File con valori reali
+
+| Tipo | File |
+|------|------|
+| Sorgenti della tabella "File da analizzare" | `appsettings.local.json`, `appsettings.Development.json`, `appsettings.Staging.json`, `appsettings.Production.json`, `docker-compose*.yaml` |
+| Variabili d'ambiente | `.env`, `.env.*` |
+| Override locali | `*.local.*` |
+| Altro | Qualsiasi file escluso da git che contiene valori di configurazione |
+
+Per individuarli basta l'elenco dei nomi: non aprirli.
+
+### Sequenza
+
+1. **Verifica `.gitignore`.** Controlla che `.gitignore` contenga `docs/*-wiki.md` (o un pattern che lo copre).
+2. **Fai la domanda** con questo testo, senza variarlo:
+
+   > Genero la wiki card con i valori reali presi da `<file trovati>`. È un documento privato, escluso da git. Confermi? (sì/no)
+
+   Pattern assente da `.gitignore` → aggiungi alla stessa domanda:
+
+   > `.gitignore` non contiene `docs/*-wiki.md`. Lo aggiungo prima di scrivere la wiki card? (sì/no)
+
+   Domanda già posta dal flusso chiamante con lo stesso testo (es. documentazione completa) → usa quella risposta, non ripeterla.
+
+3. **Attendi la risposta.** Non leggere né scrivere nulla nel frattempo.
+4. **Esito:**
+
+| Risposta | Azione |
+|----------|--------|
+| "sì" alla wiki card, pattern già presente | Leggi i file e genera la card |
+| "sì" alla wiki card e "sì" all'aggiunta del pattern | Aggiungi `docs/*-wiki.md` a `.gitignore`, poi leggi i file e genera la card |
+| "sì" alla wiki card, "no" all'aggiunta del pattern | Non generare la card: il file finirebbe in git → fallback |
+| "no", nessuna risposta o risposta ambigua | Fallback |
+| Lettura o scrittura negata dall'ambiente (permessi, classificatore) | Fallback |
+
+### Fallback
+
+Scrivi esattamente:
+
+> Wiki card saltata: conferma non ricevuta. Gli altri documenti non sono interessati.
+
+Poi termina il prompt senza leggere i file con valori reali. Il fallback non blocca altri documenti generati nella stessa sessione.
 
 ## File da analizzare (tutti, in ordine di priorità per colonna)
 
@@ -154,6 +201,9 @@ curl -u [username]:[password] [BaseUrl]/[health-endpoint]
 
 ## ✅ Checklist Post-Generazione
 
+- [ ] Conferma esplicita ("sì") ricevuta **prima** di leggere i file con valori reali
+- [ ] `docs/*-wiki.md` verificato in `.gitignore` **prima** della scrittura (o aggiunto su "sì")
+- [ ] Senza conferma o con scrittura negata: testo di fallback scritto, nessun file con valori reali letto
 - [ ] File output: `docs/card-<nome>-wiki.md`
 - [ ] Header ⚠️ SENSIBILE presente
 - [ ] Tabella Database compilata per ogni ambiente trovato
@@ -162,6 +212,5 @@ curl -u [username]:[password] [BaseUrl]/[health-endpoint]
 - [ ] Variabili Docker ricavate da docker-compose_swarm.yaml (se presente)
 - [ ] Sezione Intervento Rapido con comandi concreti (server, db, user reali)
 - [ ] Footer con data e LLM presente
-- [ ] `docs/*-wiki.md` è in `.gitignore`
 
-*Template v1.0 - Operational Wiki Card - Token-optimized for AI agents* - Last Update 2026-06-11 - claude-sonnet-4-6
+*Template v1.1 - Operational Wiki Card - Token-optimized for AI agents* - Last Update 2026-10-09 - claude-opus-5-5

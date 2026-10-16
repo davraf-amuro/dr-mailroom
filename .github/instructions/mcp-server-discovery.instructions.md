@@ -16,11 +16,13 @@ Questa istruzione si applica ogni volta che un task richiede l'uso di un **MCP s
 
 Prima di proporre la creazione di un nuovo MCP server, l'agente **deve cercarlo** in tutti i contesti accessibili, nell'ordine seguente:
 
-1. **Settings locali del progetto corrente** — `.claude/settings.json` / `.claude/settings.local.json` (chiave `mcpServers`)
-2. **Settings globali utente** — `~/.claude/settings.json` / `~/.claude/settings.local.json`
-3. **Repository workspace** — altri progetti aperti nell'ambiente corrente (working directories elencate nell'environment)
-4. **MCP servers già registrati nell'IDE** — configurazioni VS Code, JetBrains o altri ambienti attivi
-5. **Registry pubblici noti** — se si ha accesso a internet, cerca nel [MCP Registry ufficiale](https://github.com/modelcontextprotocol/servers) o repository GitHub/npm correlati
+1. **Tool già esposti nella sessione** — se i tool del server compaiono tra quelli disponibili, il server è attivo a prescindere da dove è registrato
+2. **Configurazione MCP del progetto corrente** — `.mcp.json` (radice progetto) e `.vscode/mcp.json` (chiave `servers`)
+3. **Settings locali del progetto corrente** — `.claude/settings.json` / `.claude/settings.local.json` (chiave `mcpServers`)
+4. **Settings globali utente** — `~/.claude/settings.json` / `~/.claude/settings.local.json`
+5. **Repository workspace** — altri progetti aperti nell'ambiente corrente (working directories elencate nell'environment)
+6. **MCP servers già registrati nell'IDE** — configurazioni VS Code, JetBrains o altri ambienti attivi
+7. **Registry pubblici noti** — se si ha accesso a internet, cerca nel [MCP Registry ufficiale](https://github.com/modelcontextprotocol/servers) o repository GitHub/npm correlati
 
 Se il server viene trovato in uno qualsiasi di questi punti:
 - **Proponi il server trovato** all'utente, indicando dove si trova e come configurarlo per il progetto corrente.
@@ -84,4 +86,4 @@ Se non è possibile accedere ad alcuna fonte di ricerca (es. nessun accesso inte
 
 ---
 
-*Istruzione v1.0 - MCP Server Discovery - 2026-03-27 — claude-sonnet-4-6*
+*Istruzione v1.1 - MCP Server Discovery - 2026-10-14 — claude-opus-5-5 — aggiunti `.mcp.json` e `.vscode/mcp.json` e il criterio dei tool esposti all'elenco di ricerca (davraf-amuro/dr-minimalapi#5)*

@@ -22,12 +22,13 @@ Se uno dei seguenti dati non è presente nella conversazione, **chiedilo all'ute
 
 ## Output
 
-Per ogni progetto genera **due card**:
+Per ogni progetto genera **la card standard**:
 
 | Card | File | Dati sensibili | Committata |
 |------|------|----------------|------------|
 | Card standard | `docs/card-<nome_progetto>.md` | No — solo nomi variabili | Sì |
-| Wiki card operativa | `docs/card-<nome_progetto>-wiki.md` | Sì — valori reali | No (gitignore) |
+
+> La wiki card è un passo separato: `.github/prompts/card-wiki-generator.prompt.md`, da eseguire solo su richiesta esplicita e per ultima.
 
 - Se c'e una solution (``.sln``/``.slnx``), riferiscila nel campo Solution
 - Se non c'e solution ma c'e ``.code-workspace``, usa il campo Workspace
@@ -36,16 +37,14 @@ Per ogni progetto genera **due card**:
 
 Prima di generare la card standard, rileva il tipo del progetto e usa il template dedicato:
 
-| Segnale nel codice | Tipo rilevato | Template card standard | Template wiki card |
-|--------------------|---------------|------------------------|--------------------|
-| ``Workers/*.cs`` presente | Windows Service (.NET Worker Service) | ``.github/prompts/card-worker-service.prompt.md`` | ``.github/prompts/card-wiki-generator.prompt.md`` |
-| ``Endpoints/*.cs`` presente | Minimal API (.NET 10) | ``.github/prompts/card-minimal-api.prompt.md`` | ``.github/prompts/card-wiki-generator.prompt.md`` |
-| ``package.json`` presente (senza ``.csproj``) | Frontend SPA/SSR | Usa template generico, sezione Stack da ``package.json`` | ``.github/prompts/card-wiki-generator.prompt.md`` |
-| Nessuno dei precedenti | Tipo non rilevato | Usa template generico sotto | ``.github/prompts/card-wiki-generator.prompt.md`` |
+| Segnale nel codice | Tipo rilevato | Template card standard |
+|--------------------|---------------|------------------------|
+| ``Workers/*.cs`` presente | Windows Service (.NET Worker Service) | ``.github/prompts/card-worker-service.prompt.md`` |
+| ``Endpoints/*.cs`` presente | Minimal API (.NET 10) | ``.github/prompts/card-minimal-api.prompt.md`` |
+| ``package.json`` presente (senza ``.csproj``) | Frontend SPA/SSR | Usa template generico, sezione Stack da ``package.json`` |
+| Nessuno dei precedenti | Tipo non rilevato | Usa template generico sotto |
 
-Per ogni progetto:
-1. **Genera card standard** — usa il template specifico. Non usare il template generico se esiste uno dedicato.
-2. **Genera wiki card** — usa sempre ``.github/prompts/card-wiki-generator.prompt.md`` indipendentemente dal tipo.
+Per ogni progetto: **genera la card standard** con il template specifico. Non usare il template generico se esiste uno dedicato.
 
 ## Analisi (se presenti)
 - ``.csproj``, ``appsettings*.json``, ``launchSettings.json``
@@ -110,7 +109,6 @@ Usato solo se il tipo non corrisponde a nessun template dedicato.
 - Non inventare dati; campi senza info restano vuoti
 - Tabelle senza dati: lascia solo header
 - Card standard: indica solo il nome variabile, mai il valore reale
-- Wiki card: riporta i valori reali da tutti i file config — leggi ``.github/prompts/card-wiki-generator.prompt.md``
 - Se molti progetti: una card per progetto + opzionale ``card-solution.md``
 - Risposta del prompt: indica solo le card generate, non riepilogare i dati
 
@@ -123,14 +121,11 @@ Per ogni nuovo tipo di progetto:
 ## Checklist Post-Generazione
 - [ ] Tipo rilevato correttamente, template dedicato usato se disponibile
 - [ ] ``docs/`` esiste e contiene le card standard
-- [ ] ``docs/`` esiste e contiene le wiki card (``*-wiki.md``)
 - [ ] Campi vuoti lasciati vuoti, niente dati inventati
 - [ ] Card standard: nessun segreto esposto
-- [ ] Wiki card: valori reali compilati, header sensibile presente
-- [ ] ``docs/*-wiki.md`` è in ``.gitignore``
-- [ ] Footer con data e LLM presente in entrambe le card
-- [ ] Referente compilato in entrambe le card (o `da definire`)
+- [ ] Footer con data e LLM presente in ogni card
+- [ ] Referente compilato in ogni card (o `da definire`)
 - [ ] Ambiente Test compilato (o dichiarato `non pubblicato`)
 - [ ] Ambiente Produzione compilato (o dichiarato `non pubblicato`)
 
-*Template v2.3 - .NET 10 - Token-optimized for AI agents* - Last Update 2026-07-02 00:03 - claude-fable-5
+*Template v2.4 - .NET 10 - Token-optimized for AI agents* - Last Update 2026-10-09 - claude-opus-5-5

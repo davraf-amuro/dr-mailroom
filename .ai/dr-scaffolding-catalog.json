@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "updatedAt": "2026-10-02",
+  "updatedAt": "2026-10-11",
   "defaults": {
     "dotnetFramework": "net10.0",
     "solutionFormat": "slnx",
@@ -139,7 +139,7 @@
       "targetPath": ".",
       "defaultNameSuffix": "-fe",
       "suggestedPackages": ["dr-fe"],
-      "optionalPackages": [],
+      "optionalPackages": ["dr-ux-lcars"],
       "docs": null,
       "notes": "I flag di create-vue sono booleani puri: '--vitest=false' fa fallire il comando. Va creato PRIMA dell'install del core, perche' scrive un proprio .editorconfig/.gitignore/.gitattributes. Lo script 'lint' generato usa --fix, quindi non vale come gate di verifica."
     }
@@ -158,7 +158,11 @@
         ".claude/skills/dr-tattico",
         ".claude/skills/dr-CreateLaunchProfiles",
         ".github/prompts/dr-pianifica-issue.prompt.md",
-        ".github/prompts/dr-segnala-miglioria.prompt.md"
+        ".github/prompts/dr-segnala-miglioria.prompt.md",
+        ".github/instructions/readme-structure.instructions.md"
+      ],
+      "coreOnlyArtifacts": [
+        ".github/instructions/readme-structure.instructions.md"
       ]
     },
     {
@@ -176,7 +180,12 @@
       "isCore": false,
       "dependencies": ["dr-dotnet-backend"],
       "appliesTo": ["dotnet"],
-      "description": "Architettura Minimal API, prompt endpoint e scaffolding CRUD."
+      "suggests": [
+        { "package": "dr-efdb", "reason": "senza, provider, filtri e DTO seguono il ripiego della regola 9 invece dell'esempio ModelKit completo; l'avvio resiliente col DB irraggiungibile resta un requisito senza pattern" },
+        { "package": "dr-fe", "reason": "senza, la custodia del token lato client si riduce alla sola regola 'in memoria, mai in localStorage'" },
+        { "package": "dr-devops", "reason": "senza, volumi e variabili dello stack Swarm per il portachiavi Data Protection restano da configurare a mano" }
+      ],
+      "description": "Architettura Minimal API, prompt per scheda del progetto e analisi degli endpoint."
     },
     {
       "name": "dr-winsvc",
@@ -218,7 +227,16 @@
       "suggests": [
         { "package": "dr-minimalapi", "reason": "senza, Data Protection e forwarded headers lato codice restano due requisiti da configurare a mano" }
       ],
-      "description": "Docker Swarm, Portainer, CI/CD GitLab."
+      "description": "Docker Swarm, Portainer, CI/CD GitLab. Non copre Dockerfile né compose per host singolo."
+    },
+    {
+      "name": "dr-ux-lcars",
+      "repo": "davraf-amuro/dr-ux-lcars",
+      "isCore": false,
+      "dependencies": ["dr-fe"],
+      "appliesTo": ["node"],
+      "rootFiles": ["scripts/lcars-contrast.mjs"],
+      "description": "Tema grafico LCARS per frontend Vue 3 + Tailwind v4: palette enterprise-d ed enterprise-e, prompt di applicazione, verifica dei contrasti."
     }
   ]
 }

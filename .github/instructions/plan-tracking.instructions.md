@@ -69,6 +69,18 @@ Ogni fase è un passo atomico, eseguibile da un agente senza interpretazione.
 - [ ] <criterio misurabile>
 ```
 
+### Documenti che descrivono il sistema
+
+Vale per i documenti in `docs/` che descrivono il funzionamento del sistema (es. `docs/architettura.md`). Il piano prevede una fase di riallineamento quando:
+
+- crea o riscrive un documento di questo tipo **prima** delle fasi di implementazione, oppure
+- modifica codice già descritto da un documento esistente in `docs/`.
+
+In questi casi:
+
+1. Aggiungi la fase "Riallinea il documento al codice" **subito prima** della verifica finale (penultima fase). Il documento va in Scope.
+2. Cosa confrontare col codice lo stabilisce l'istruzione del documento (es. `architecture-doc.instructions.md`, sezione "Riallineamento a fine implementazione"). Revisione e footer seguono `doc-versioning.instructions.md`.
+
 ---
 
 ## Fase 1–3: Esecuzione
@@ -88,7 +100,8 @@ Prima di dichiarare il task completato:
 1. Rileggi `plan.md`
 2. Verifica ogni criterio in "Criteri di verifica finale"
 3. Applica `dev-cycle.instructions.md` — Fase 4 ("tutti i file modificati riletti e verificati") su ogni file di "Scope"
-4. Esegui il controllo del punto 3 in un contesto isolato dalla conversazione che ha scritto il codice, quando lo strumento usato lo consente (nuova sessione, sub-agente, secondo revisore) — chi ha scritto il codice tende a confermarlo, un controllo a freddo senza cronologia pregressa lo rileva meglio. Su Claude Code: skill `dr-verify-plan`.
+   - 3a. Se lo Scope contiene un documento che descrive il sistema (vedi Fase 0, "Documenti che descrivono il sistema"), le sue affermazioni si confrontano col codice reale: una differenza è una divergenza.
+4. Esegui il controllo del punto 3 (3a compreso) in un contesto isolato dalla conversazione che ha scritto il codice, quando lo strumento usato lo consente (nuova sessione, sub-agente, secondo revisore) — chi ha scritto il codice tende a confermarlo, un controllo a freddo senza cronologia pregressa lo rileva meglio. Su Claude Code: skill `dr-verify-plan`.
 5. Se tutti i criteri soddisfatti:
    - Aggiorna `Stato: COMPLETATO`
    - Dichiara esplicitamente: `"Piano [slug] verificato. Tutti i criteri soddisfatti."`
@@ -179,4 +192,4 @@ Vale anche quando il brief è l'argomento di una skill o di un prompt invocato e
 
 ---
 
-*Istruzione v1.6 - Plan Tracking - 2026-09-24 — claude-opus-5-5 — aggiunti la cartella `briefs/`, la sezione "Piani da un brief" (piano sempre obbligatorio e approvato) e il link al brief sotto il titolo del piano*
+*Istruzione v1.7 - Plan Tracking - 2026-10-09 — claude-opus-5-5 — aggiunti la fase di riallineamento penultima per i documenti che descrivono il sistema e il punto 3a della verifica finale (differenza documento/codice = divergenza)*

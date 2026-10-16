@@ -14,7 +14,7 @@ Prima di generare o modificare codice, stabilisci in quale dominio stai lavorand
 
 Nessun pacchetto di dominio installato e il task richiede codice applicativo → fermati e chiedi quale dominio, invece di assumerne uno.
 
-Il rilevamento vale per i task che generano o modificano **codice applicativo**. Per task di sola documentazione o configurazione (markdown, file di config), non porre la domanda: prosegui con l'istruzione modulare pertinente al file (es. `doc-versioning`, `readme-structure`).
+Il rilevamento vale per i task che generano o modificano **codice applicativo**. Per task di sola documentazione o configurazione (markdown, file di config), non porre la domanda: prosegui con l'istruzione modulare o il prompt pertinente al file (es. `doc-versioning`, `readme-generator`, `architecture-doc`).
 
 ## Convenzioni essenziali (tutti i domini)
 
@@ -23,6 +23,7 @@ Il rilevamento vale per i task che generano o modificano **codice applicativo**.
 - Naming coerente con le convenzioni del linguaggio in uso, applicate in modo uniforme in tutto il progetto
 - Validazione esplicita di ogni input che arriva dall'esterno; segui `input-validation.instructions.md`
 - Valori letterali con significato centralizzati; segui `no-hardcoded-values.instructions.md`
+- Operazioni indipendenti: preferisci l'esecuzione parallela con limite esplicito, cancellazione ed errori per ramo; se resti in serie, dichiaralo; segui `concurrency.instructions.md`
 - Dati sensibili: segui sempre `sensitive-data.instructions.md`; credenziali **mai** in file committati
 
 ## Checklist Pre-Task (obbligatoria)
@@ -77,4 +78,4 @@ Nessun comando di verifica applicabile al progetto (per esempio un repository di
 
 > Regola assoluta: nessun `git push` senza verifica pulita o assenza di target dichiarata.
 
-*Template v2.0 - agnostico dallo stack - Token-optimized for AI agents* - Last Update 2026-09-24 — claude-opus-5-5
+*Template v2.2 - agnostico dallo stack - Token-optimized for AI agents* - Last Update 2026-10-14 — claude-sonnet-5-5

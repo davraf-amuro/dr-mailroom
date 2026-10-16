@@ -92,13 +92,13 @@ Regola assoluta: se il nome progetto non è ricavabile né confermato, **fermati
    - Provider: `Get<Entity>Async<TDto>(<Entity>Filter filter, Expression<Func<TEntity, TDto>> selector, CancellationToken ct)` — mai GetAllAsync senza filtro
    - Chiamata handler: tramite Service (vedi regola 12) — il Service passa `MyDto.Projection` al provider
 10) Ogni input esterno (body POST/PUT/PATCH **e filtri query dei GET**): valida con `IValidator<T>` prima di processare; segui `input-validation.instructions.md`
-11) Ogni nuovo progetto include `HealthMapping.cs` con: `MapHealthChecks("/health")` (infrastruttura, non in Scalar) + `GET /api/v1/status` versioned (consumer-facing, in Scalar). Se il progetto dipende dal DB con seed/inizializzazione all'avvio, segui `database-startup-resilience.instructions.md` (avvio resiliente, stato DB, retry, 503 a runtime)
+11) Ogni nuovo progetto include `HealthMapping.cs` con: `MapHealthChecks("/health")` (infrastruttura, non in Scalar) + `GET /api/v1/status` versioned (consumer-facing, in Scalar). Se il progetto dipende dal DB con seed/inizializzazione all'avvio, controlla `.ai/dr-guidelines-packages.json`: se elenca `dr-efdb`, segui `database-startup-resilience.instructions.md` (sezioni "Regole core" e "Contratto endpoint") e dichiaralo nell'output. Se non lo elenca, ripiego: l'applicazione parte anche con il DB irraggiungibile, `/api/v1/status` espone lo stato del DB e le richieste che ne dipendono rispondono 503 finché non è pronto; dichiara nell'output che applichi il ripiego
 12) **Service layer obbligatorio per il CRUD di entità**: classe `Services/<Entity>Service.cs` tra handler e provider. Gli handler iniettano **solo il Service** — mai il provider, mai le Projection. Il Service riceve il provider via primary constructor (DI). Il Service: sceglie la Projection per ogni caso d'uso, mappa request→entity (metodo privato `ToEntity`) ed entity→DTO, espone `GetAllAsync`, `GetSummariesAsync`, `GetByIdAsync`, `CreateAsync`, `UpdateAsync`, `DeleteAsync`
 13) **Commenti obbligatori** (provider, service, handler, validator): `///` XML doc di una riga che spieghi il ruolo nel flusso a un dev senior + commento inline su ogni operazione DB — segui `code-organization.instructions.md` Regola 6. Casi obbligatori: (a) tutti i `public` method; (b) provider/service/handler/validator indipendentemente dallo scope; (c) logica con predicati composti o query composition. Esclusi: getter/setter banali, wrapper di una riga.
 
 ## Scoperta automatica struttura DB via MCP
 
-Se nel progetto è configurato un MCP server `db-schema` (verifica in `.claude/settings.json` o `~/.claude/settings.json`, chiave `mcpServers`):
+Se nel progetto è disponibile un MCP server `db-schema`, riconoscilo così: (1) i suoi tool sono esposti nella sessione; oppure (2) è registrato in `.mcp.json` (radice progetto, ignorato da git), `.vscode/mcp.json`, `.claude/settings.json` o `~/.claude/settings.json` (chiave `mcpServers`, o `servers` in `.vscode/mcp.json`):
 
 1. **Non chiedere i campi all'utente** — leggi la struttura dalla tabella:
    - Usa `mcp__db-schema__use_connection` per selezionare la connessione
@@ -115,7 +115,7 @@ Se nel progetto è configurato un MCP server `db-schema` (verifica in `.claude/s
    - Campi con regole non determinabili dallo schema → nessun errore per quel campo + commento `// TODO: validazione`
    - Non chiedere regole all'utente: genera subito, codice compilabile e funzionante.
 
-Se MCP db-schema non è configurato: comportamento standard (chiedi i campi all'utente prima di procedere).
+Se `db-schema` non è trovato: dichiara "db-schema non trovato in <posizioni controllate>" e chiedi i campi all'utente prima di procedere.
 
 ---
 
@@ -176,7 +176,7 @@ Conseguenza operativa: partire dal cookie non è irreversibile. Quando arriva un
 
 ### Cosa evitare, e perché
 
-- **Token in `localStorage`** — leggibile da JavaScript, quindi rubabile con un XSS. Il cookie `HttpOnly` non lo è. Se il bearer è inevitabile, il token sta in memoria e si rinnova col refresh: vedi `frontend-organization.instructions.md`
+- **Token in `localStorage`** — leggibile da JavaScript, quindi rubabile con un XSS. Il cookie `HttpOnly` non lo è. Se il bearer è inevitabile, il token sta in memoria e si rinnova col refresh. Per il lato client controlla `.ai/dr-guidelines-packages.json`: se elenca `dr-fe`, la fonte unica è `frontend-organization.instructions.md`, "Regola 7 — Autenticazione lato frontend"; se non lo elenca, vale come ripiego la riga che precede. Dichiara nell'output quale dei due rami applichi
 - **JWT per utenti umani** — il token è autoconsistente e l'API non lo confronta con nessun archivio. Non esiste revoca: dopo un logout o un cambio password il token già emesso resta valido fino alla scadenza. Vale la pena solo quando il lookup a database è un collo di bottiglia **misurato**, non ipotizzato
 
 ### Rilascio in container
@@ -188,6 +188,7 @@ Due regole obbligatorie appena un'applicazione containerizzata ha un'auth con co
 I cookie di Identity e i token opachi di `AddBearerToken` sono cifrati con le chiavi Data Protection. Senza configurazione esplicita finiscono nel filesystem del container, con due conseguenze: ricreare il container invalida ogni sessione (tutti gli utenti sloggati a ogni deploy), e con `replicas > 1` ogni replica ha il proprio portachiavi (il login su una replica non vale sull'altra, quindi 401 a intermittenza).
 
 - Default: `PersistKeysToDbContext<TDbContext>()` — pacchetto `Microsoft.AspNetCore.DataProtection.EntityFrameworkCore`, sfrutta il database già presente per Identity
+  - **La tabella `DataProtectionKeys` esiste prima che partano le repliche.** La crea una migrazione EF applicata come passo di deploy separato e serializzato (job one-shot, oppure l'eseguibile di `dotnet ef migrations bundle`), mai con `Migrate()` all'avvio quando le repliche sono più di una: repliche avviate insieme su un database senza la tabella la creano in corsa. Il sintomo non è un errore all'avvio ma un'autenticazione che funziona a intermittenza, lo stesso quadro del portachiavi non condiviso
 - Alternativa: `PersistKeysToFileSystem` su un volume montato, quando il database non è disponibile all'avvio
 - In entrambi i casi `SetApplicationName("<nome-applicazione>")` esplicito: le repliche devono condividere lo stesso spazio di chiavi
 
@@ -198,7 +199,11 @@ Con TLS terminato sul reverse proxy l'applicazione riceve `http` e considera la 
 - Inoltra `XForwardedProto` e `XForwardedFor`
 - **Trappola Docker**: di default vengono accettate solo le intestazioni provenienti dal loopback, mentre il reverse proxy arriva dall'indirizzo IP di un altro container. Vanno configurati `KnownNetworks`/`KnownProxies` per la rete Docker, altrimenti le intestazioni sono ignorate senza alcun errore visibile e il rimedio sembra non avere effetto
 
-Identity richiede il database all'avvio: vale anche `database-startup-resilience.instructions.md`. Per il lato stack — volumi, variabili d'ambiente, repliche — vedi `docker-swarm-compose.instructions.md`.
+Identity richiede il database all'avvio: vale l'avvio resiliente della regola 11, con lo stesso rimando condizionale a `dr-efdb`.
+
+Per il lato stack — volumi, variabili d'ambiente, repliche — controlla `.ai/dr-guidelines-packages.json`:
+- se elenca `dr-devops` e il deploy è uno stack Docker Swarm → segui `docker-swarm-compose.instructions.md`, sezione "6. Chiavi Data Protection", e dichiaralo nell'output;
+- se non lo elenca, oppure se il deploy è un container su host singolo (`docker compose up`), che `dr-devops` non copre → ripiego: il portachiavi sta su un volume persistente o nel database e sopravvive alla ricreazione del container; le variabili d'ambiente vengono dalla configurazione e non dal file del compose. Dichiara nell'output che applichi il ripiego.
 
 ---
 
@@ -449,7 +454,7 @@ builder.Services.AddScoped<ModelKitsProvider>();   // o tramite Add<Provider>Pro
 builder.Services.AddScoped<ModelKitService>();
 ```
 
-> **Implementazione di riferimento:** `src/test-guideline.api/` — `Infrastructure/ModelKits/` (entity, DbContext, filter, provider), `Services/ModelKitService.cs`, `Dto/ModelKitDto.cs`, `Endpoints/ModelKitsMapping.cs`.
+> **Entity, DbContext, filtro, provider e DTO di `ModelKit`.** Controlla `.ai/dr-guidelines-packages.json`: se elenca `dr-efdb`, la fonte unica è `database-provider.instructions.md`: sezione "📖 Esempio di riferimento: ModelKit" per entity, DbContext, filtro e DTO, pattern 2️⃣ e 6️⃣ per provider e DI Extension — seguila e dichiaralo nell'output. Se non lo elenca, vale il ripiego della regola 9: filtro con campi nullable e `ToExpression()`, DTO record con `static Projection`, provider con `Get<Entity>Async<TDto>(filter, selector, ct)`; dichiara nell'output che stai applicando il ripiego.
 
 ---
 
@@ -492,7 +497,7 @@ builder.Services.AddScoped<ModelKitService>();
 }
 ```
 
-> **Nota:** Il percorso di `program` dipende da `OutputPath`: default standard .NET = `bin/Debug/<tfm>/`. Se `Directory.Build.props` o il csproj sovrascrivono `<OutputPath>`, leggi il valore reale e calcola il percorso di conseguenza. Con Claude Code la generazione guidata di questi file è disponibile via skill `dr-CreateLaunchProfiles` (stesso percorso di default).
+> **Nota:** Il percorso di `program` dipende da `OutputPath`: default standard .NET = `bin/Debug/<tfm>/`. Se `Directory.Build.props` o il csproj sovrascrivono `<OutputPath>`, leggi il valore reale e calcola il percorso di conseguenza. Con Claude Code la generazione guidata di questi file è disponibile via skill `dr-create-launch-profiles` (stesso percorso di default).
 
 **tasks.json**:
 ```json
@@ -559,5 +564,5 @@ Se una risposta è NO → chiedi chiarimenti all'utente prima di procedere.
 ## Test
 - Aggiungi sempre un file .http per endpoint nuovi
 
-*Template v2.3 - .NET 10 - Token-optimized for AI agents* - Last Update 2026-08-12 — claude-opus-5
+*Template v2.8 - .NET 10 - Token-optimized for AI agents* - Last Update 2026-10-14 — claude-opus-5-5 — ricerca di db-schema anche in .mcp.json e .vscode/mcp.json (dr-minimalapi#5); rimandi a dr-efdb, dr-fe e dr-devops condizionali al manifest (dr-minimalapi#1, #3); migrazione di DataProtectionKeys prima delle repliche (dr-minimalapi#2); rimando ModelKit allineato all'esempio di dr-efdb; nome skill dr-create-launch-profiles
 

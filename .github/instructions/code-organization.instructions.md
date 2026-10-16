@@ -133,6 +133,7 @@ Se la risposta è "perché si fa così" → non applicarlo.
 | **Decorator** | Aggiungere comportamento senza modificare la classe (es. caching, logging). |
 | **Observer/Event** | Disaccoppiamento produttore/consumatore (es. evento "ordine creato"). |
 | **Pipeline** | Trasformazioni sequenziali su un input (validazione, trasformazione). |
+| **Produttore/consumatore con coda bounded** | Acquisizione da una sorgente (API, casella di posta, file, tabella, broker) ed elaborazione per elemento. Chi acquisisce non elabora: i due lati comunicano solo da una coda FIFO a capienza fissa, con contropressione, e il parallelismo si regola separatamente (di solito pochi produttori, N worker). Mai "leggi ed elabora" nello stesso ciclo parallelo: il parallelismo dell'elaborazione colpirebbe la sorgente. |
 
 ---
 
@@ -233,4 +234,4 @@ const products = await productRepo.findActive();
 
 ---
 
-*Istruzione v1.3 - Code Organization - 2026-07-22 — claude-opus-4-8*
+*Istruzione v1.4 - Code Organization - 2026-10-11 — claude-opus-5-5 — Regola 4: produttore/consumatore con coda bounded (dr-dotnet-backend#2)*

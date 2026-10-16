@@ -90,7 +90,7 @@ Stabilisci anche **come raggiungere gli installer**. Due vie, entrambe valide:
 1. `gh api` — non serve nessun clone locale e funziona anche a repo Private. Richiede `gh auth status` autenticato (già verificato nel Gate 0).
 2. Percorso locale dei repo `dr-*` — la cartella che contiene `dr-guidelines`, `dr-minimalapi`, … se il workspace li ha già.
 
-`irm ... | iex` funziona solo a repo Public: oggi risponde `404`.
+`irm ... | iex` è un'alternativa valida, perché i repo sono Public. Su un repo Private risponderebbe `404`: lì si usa `gh api`.
 
 ---
 

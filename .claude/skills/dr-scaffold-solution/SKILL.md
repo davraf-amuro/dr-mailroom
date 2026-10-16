@@ -30,7 +30,7 @@ INPUT_UTENTE
      ```
    - **path locale** — se il workspace contiene già i repo `dr-*` come cartelle sorelle, usa quelli. Individua la cartella che contiene `dr-guidelines`, `dr-minimalapi`, ecc.
 
-   `irm ... | iex` funziona solo a repo Public: oggi risponde `404`.
+   `irm ... | iex` è un'alternativa valida, perché i repo sono Public. Su un repo Private risponderebbe `404`: lì si usa `gh api`.
 
 Non elencare le tipologie a memoria: le prendi da `projectTypes[]` del catalogo. Se il catalogo cresce, questa skill non va toccata.
 
