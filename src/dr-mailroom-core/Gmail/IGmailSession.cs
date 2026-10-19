@@ -12,7 +12,7 @@ public interface IGmailSession : IDisposable
     /// <summary>Messaggi aggiunti dopo historyId (solo messageAdded). Lancia HistoryExpiredException su HTTP 404.</summary>
     Task<HistoryChanges> ListChangesSinceAsync(ulong historyId, CancellationToken cancellationToken);
 
-    /// <summary>Metadati di un messaggio (format=metadata): mittente, oggetto, data, label, presenza allegati.</summary>
+    /// <summary>Metadati di un messaggio (format=metadata): mittente, oggetto, data, label, presenza allegati. Lancia GmailMessageNotFoundException su HTTP 404.</summary>
     Task<GmailMessageMetadata> GetMetadataAsync(string gmailMessageId, CancellationToken cancellationToken);
 
     /// <summary>Parti allegato del messaggio (format=full), senza scaricarne il contenuto.</summary>

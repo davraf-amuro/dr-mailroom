@@ -199,15 +199,28 @@ public class MailboxIngestionService(
         return new IngestionResult(false, inserted, read);
     }
 
-    /// <summary>Legge i metadati una mail per volta: niente chiamate concorrenti verso Gmail, la quota è per utente.</summary>
-    private static async Task<IReadOnlyList<Message>> FetchMessagesAsync(
+    /// <summary>
+    /// Legge i metadati una mail per volta: niente chiamate concorrenti verso Gmail, la quota è per utente.
+    /// Un messaggio eliminato da Gmail dopo l'elenco (404) si salta: non deve bloccare il giro né il checkpoint.
+    /// </summary>
+    private async Task<IReadOnlyList<Message>> FetchMessagesAsync(
         IGmailSession session, Mailbox mailbox, IReadOnlyList<string> gmailIds, CancellationToken cancellationToken)
     {
         var messages = new List<Message>(gmailIds.Count);
         foreach (var gmailId in gmailIds)
         {
-            // Chiamo Gmail: metadati del messaggio
-            var metadata = await session.GetMetadataAsync(gmailId, cancellationToken);
+            GmailMessageMetadata metadata;
+            try
+            {
+                // Chiamo Gmail: metadati del messaggio
+                metadata = await session.GetMetadataAsync(gmailId, cancellationToken);
+            }
+            catch (GmailMessageNotFoundException)
+            {
+                logger.LogWarning("Casella {MailboxId}: messaggio {GmailMessageId} eliminato da Gmail, saltato", mailbox.Id, gmailId);
+                continue;
+            }
+
             messages.Add(ToEntity(mailbox, metadata));
         }
 

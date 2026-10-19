@@ -37,6 +37,18 @@ public class GmailSessionTests
     }
 
     [Fact]
+    public async Task GetMetadata_Http404_ThrowsGmailMessageNotFoundAsync()
+    {
+        var handler = new FakeGoogleHandler((_, _) => FakeGoogleHandler.GoogleError(HttpStatusCode.NotFound));
+        using var session = OpenSession(handler);
+
+        var ex = await Assert.ThrowsAsync<GmailMessageNotFoundException>(() => session.GetMetadataAsync("gone", CancellationToken.None));
+
+        Assert.Equal("gone", ex.GmailMessageId);
+        Assert.Equal(1, handler.GmailCalls);
+    }
+
+    [Fact]
     public async Task Http429_IsRetriedThenSucceedsAsync()
     {
         var handler = new FakeGoogleHandler((_, call) => call == 1

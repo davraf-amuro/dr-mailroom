@@ -150,6 +150,38 @@ public class MailboxIngestionServiceTests
     }
 
     [Fact]
+    public async Task Incremental_MissingMessage_IsSkipped_AndHistoryIdAdvancesAsync()
+    {
+        await SeedAsync();
+        await IngestAsync(TwoPageMailbox());
+
+        var session = TwoPageMailbox();
+        session.Changes = new HistoryChanges(["d", "gone", "e"], 600);
+        session.MissingMetadataIds.Add("gone");
+        var result = await IngestAsync(session);
+
+        Assert.Equal(2, result.InsertedMessageIds.Count);
+        Assert.Equal(["a", "b", "c", "d", "e"], await LoadGmailIdsAsync());
+        Assert.Equal(600UL, (await LoadMailboxAsync()).HistoryId);
+    }
+
+    [Fact]
+    public async Task Backfill_MissingMessage_IsSkipped_AndPageCompletesAsync()
+    {
+        await SeedAsync();
+        var session = TwoPageMailbox();
+        session.MissingMetadataIds.Add("b");
+
+        var result = await IngestAsync(session);
+
+        var mailbox = await LoadMailboxAsync();
+        Assert.Equal(3, result.MessagesRead);
+        Assert.Equal(["a", "c"], await LoadGmailIdsAsync());
+        Assert.True(mailbox.BackfillCompleted);
+        Assert.Null(mailbox.BackfillPageToken);
+    }
+
+    [Fact]
     public async Task UndatedMessages_AreReReadAndRedated_UnreadableOnesStayAsync()
     {
         await SeedAsync(backfillCompleted: true, historyId: 500);

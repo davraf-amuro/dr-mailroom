@@ -93,15 +93,26 @@ public sealed class GmailSession(
         return new HistoryChanges(added, latestHistoryId);
     }
 
-    /// <summary>Legge i metadati di un messaggio con i soli header From, Subject e Date (Date: ripiego se manca internalDate).</summary>
+    /// <summary>
+    /// Legge i metadati di un messaggio con i soli header From, Subject e Date (Date: ripiego se manca internalDate).
+    /// Messaggio eliminato definitivamente (404) → GmailMessageNotFoundException.
+    /// </summary>
     public async Task<GmailMessageMetadata> GetMetadataAsync(string gmailMessageId, CancellationToken cancellationToken)
     {
         var request = service.Users.Messages.Get(GmailConstants.Me, gmailMessageId);
         request.Format = UsersResource.MessagesResource.GetRequest.FormatEnum.Metadata;
         request.MetadataHeaders = new Repeatable<string>([GmailConstants.FromHeader, GmailConstants.SubjectHeader, GmailConstants.DateHeader]);
 
-        // Chiamo Gmail: users.messages.get (format=metadata)
-        var message = await ExecuteAsync(request.ExecuteAsync, GmailConstants.MessagesGetCost, nameof(GetMetadataAsync), cancellationToken);
+        Message message;
+        try
+        {
+            // Chiamo Gmail: users.messages.get (format=metadata)
+            message = await ExecuteAsync(request.ExecuteAsync, GmailConstants.MessagesGetCost, nameof(GetMetadataAsync), cancellationToken);
+        }
+        catch (GoogleApiException ex) when (ex.HttpStatusCode == HttpStatusCode.NotFound)
+        {
+            throw new GmailMessageNotFoundException(gmailMessageId, ex);
+        }
 
         var headers = message.Payload?.Headers ?? [];
         var (address, displayName) = SenderParser.Parse(FindHeader(headers, GmailConstants.FromHeader));

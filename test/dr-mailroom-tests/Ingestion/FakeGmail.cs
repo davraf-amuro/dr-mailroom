@@ -27,6 +27,9 @@ public sealed class FakeGmailSession : IGmailSession
     /// <summary>Id per cui GetMetadataAsync deve fallire.</summary>
     public string? FailOnMetadataId { get; set; }
 
+    /// <summary>Id eliminati da Gmail: GetMetadataAsync lancia GmailMessageNotFoundException (404).</summary>
+    public HashSet<string> MissingMetadataIds { get; } = [];
+
     /// <summary>Eccezione lanciata da ogni lettura di pagine/history/profilo (es. TokenRevokedException).</summary>
     public Exception? FailEverythingWith { get; set; }
 
@@ -100,6 +103,11 @@ public sealed class FakeGmailSession : IGmailSession
             if (gmailMessageId == FailOnMetadataId)
             {
                 throw new HttpRequestException("metadati non disponibili");
+            }
+
+            if (MissingMetadataIds.Contains(gmailMessageId))
+            {
+                throw new GmailMessageNotFoundException(gmailMessageId, new InvalidOperationException("404"));
             }
 
             return new GmailMessageMetadata(

@@ -207,6 +207,7 @@ Regole che valgono in ogni giro:
 - **Checkpoint insieme ai messaggi.** Messaggi nuovi, nuovo `HistoryId` e contatore `MessagesRead` si salvano in un unico `SaveChanges`: passano tutti o nessuno. Se una lettura da Gmail fallisce prima, il checkpoint resta quello vecchio e il giro successivo rilegge gli stessi messaggi; l'insert idempotente evita i duplicati.
 - **Esito scritto a parte.** Esito del giro e stato della casella si scrivono con un contesto EF nuovo. Così un errore lasciato a metà nel contesto del giro (per esempio un `HistoryId` già avanzato in memoria) non viene salvato per sbaglio.
 - **History scaduta (HTTP 404)** → scansione completa idempotente della casella. Entrano solo i messaggi mancanti, che poi passano dai filtri.
+- **Messaggio eliminato da Gmail (HTTP 404 su `messages.get`).** La history e l'elenco riportano anche messaggi poi eliminati definitivamente (spam cancellato, cestino svuotato). Il messaggio si salta con un warning nel log e il giro prosegue: il checkpoint avanza e la casella non resta bloccata sullo stesso `HistoryId`. `MessagesRead` lo conta comunque.
 - **Una casella in errore non ferma le altre.** `invalid_grant` porta la casella in `TokenRevoked`.
 - **Processi solo sui messaggi inseriti ora**, mai su quelli già presenti. Un processo che fallisce su un messaggio registra `Failed` in `ProcessExecution` e il giro prosegue.
 - **Produttore e consumatori separati.** L'ingestione legge Gmail una mail per volta e mette gli id salvati in una coda FIFO bounded (`MessageProcessingQueue`); i consumatori la svuotano in parallelo, ognuno con il proprio scope DI. Se il produttore fallisce, i consumatori finiscono i messaggi già in coda e poi il giro chiude `Failed`; un errore fatale di un consumatore (per esempio `invalid_grant`) annulla tutto. La riapplica usa la stessa coda, con i candidati letti da DB come produttore.
@@ -354,4 +355,4 @@ erDiagram
 | `HasAttachments` dedotto dal tipo MIME `multipart/mixed` | con `format=metadata` Gmail non elenca le parti: alcune mail con allegati inline possono risultare senza | nessuno necessario: l'estrazione legge sempre le parti reali (`format=full`) |
 | Riapplica e giro manuale verificano la casella e poi la affidano allo scheduler | in una finestra brevissima un altro giro può prendere il lock prima | il giro parte e chiude come `Skipped`, senza effetti sui dati |
 
-*Revisione v2.2 — 2026-10-13 23:05 — claude-opus-5-5*
+*Revisione v2.3 — 2026-10-19 23:41 — claude-opus-5-5*
