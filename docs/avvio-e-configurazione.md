@@ -136,6 +136,8 @@ docker compose logs -f
 
 Le cartelle si possono spostare con `ATTACHMENTS_HOST_PATH`, `KEYS_HOST_PATH` e `LOGS_HOST_PATH` nel file `.env`.
 
+Il container gira con il fuso **`Europe/Rome`**: gli orari nei log, la data nel nome dei file giornalieri e i cron Quartz seguono l'ora italiana (la purga delle `03:30` scatta alle 03:30 italiane). Per cambiarlo imposta `TZ` nel file `.env`. Le date salvate nel database e restituite dalle API restano in UTC.
+
 > ⚠️ **Il key ring è indispensabile.** I refresh token salvati nel database si decifrano solo con le chiavi di `./data/keys`. Se perdi la cartella devi ricollegare tutte le caselle. Includila nei backup, insieme al database.
 
 La porta host resta **5180**: è quella del redirect URI registrato su Google.
@@ -190,4 +192,4 @@ dotnet format test/dr-mailroom-tests/dr-mailroom-tests.csproj --verify-no-change
 - Container: `Dockerfile`, `docker-compose.yml`, `.env.example`
 - Piano: `.ai/plans/2026-10-02-mailroom-gmail-reader/plan.md` (C7, C10, C11, D12, T6)
 
-*Revisione v1.2 — 2026-10-13 21:35 — claude-opus-5-5*
+*Revisione v1.3 — 2026-10-20 00:10 — claude-opus-5-5*

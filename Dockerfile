@@ -16,8 +16,10 @@ FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
 WORKDIR /app
 
 # Percorsi dei volumi: allegati, key ring Data Protection (fuori dal DB, T6) e log Serilog
+# TZ: ora italiana per log, nome dei file giornalieri e cron Quartz (tzdata già nell'immagine); DB e API restano in UTC
 ENV ASPNETCORE_HTTP_PORTS=8080 \
     ASPNETCORE_ENVIRONMENT=Production \
+    TZ=Europe/Rome \
     Mailroom__Attachments__RootPath=/data/attachments \
     Mailroom__DataProtection__KeyRingPath=/data/keys
 
