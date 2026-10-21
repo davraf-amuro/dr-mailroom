@@ -2,6 +2,8 @@
 .claude/settings.local.json
 my-minimalapi.md
 CLAUDE.original.md
+# Copia di sicurezza scritta dall'installer prima di riscrivere settings.json
+.claude/settings.json.bak
 
 # MCP e config locali (valori reali — non committare; usa .mcp.example.json)
 .mcp.json
