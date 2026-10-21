@@ -20,6 +20,7 @@ Il rilevamento vale per i task che generano o modificano **codice applicativo**.
 
 - `async`/`await` (o l'equivalente idiomatico del linguaggio) per ogni operazione di I/O
 - Logging strutturato con placeholder — mai interpolazione di stringa dentro il log
+- Soggetto del log indicato dall'utente (valore di un campo come ID o Codice) → ogni log del flusso lo riporta nella proprietà fissa `Subject` (`<Campo>=<valore>`), impostata una volta all'ingresso del flusso, così i log del soggetto si isolano con un filtro; segui `logging.instructions.md`
 - Naming coerente con le convenzioni del linguaggio in uso, applicate in modo uniforme in tutto il progetto
 - Validazione esplicita di ogni input che arriva dall'esterno; segui `input-validation.instructions.md`
 - Valori letterali con significato centralizzati; segui `no-hardcoded-values.instructions.md`
@@ -35,11 +36,12 @@ Fonte unica: `dev-cycle.instructions.md` — Fase 0. Compila quella checklist ne
 - [ ] Dominio individuato dai pacchetti installati, istruzione modulare letta
 - [ ] Ho seguito le istruzioni modulari pertinenti
 - [ ] Logging strutturato e gestione asincrona dell'I/O usati dove servono
+- [ ] Soggetto del log indicato dall'utente presente in ogni log del flusso (`Subject`)
 
 ## Verifica post-modifica (qualsiasi file)
 
 Dopo ogni modifica a un file:
-1. Rileggi il file modificato
+1. Rileggi la parte modificata — sempre per file scritti da script, generatori o comandi di shell; se lo strumento di modifica fallisce quando il testo non si applica esattamente (es. Edit di Claude Code), la sua conferma vale come riletta del punto modificato
 2. Confronta il contenuto con quanto richiesto
 3. Solo se corrispondono, dichiara la modifica completata
 
@@ -51,8 +53,9 @@ Ogni task segue il ciclo definito in `dev-cycle.instructions.md`:
 - **Verifica** (rileggi) dopo ogni modifica
 - **Segnala** incertezza - non assumere silenziosamente
 
-Task con >= 2 operazioni: crea piano su disco in `.ai/plans/<YYYY-MM-DD>-<slug>/` prima di procedere.
-Segui `plan-tracking.instructions.md` per struttura e verifica finale.
+Task con >= 2 operazioni: crea piano su disco in `.ai/plans/<YYYY-MM-DD>-<slug>/` e attendi l'approvazione esplicita prima di procedere.
+Segui `plan-tracking.instructions.md` per definizione di "operazione", struttura e verifica finale.
+Sottoponendo il piano, proponi **sempre** di eseguirlo in un branch dedicato; l'utente sceglie e la scelta va nel campo `Branch:` del piano (`plan-tracking.instructions.md`, sezione "Branch di esecuzione").
 
 ## Brief dell'utente — cartella `briefs/`
 
@@ -78,4 +81,4 @@ Nessun comando di verifica applicabile al progetto (per esempio un repository di
 
 > Regola assoluta: nessun `git push` senza verifica pulita o assenza di target dichiarata.
 
-*Template v2.2 - agnostico dallo stack - Token-optimized for AI agents* - Last Update 2026-10-14 — claude-sonnet-5-5
+*Istruzione v2.5 - Copilot Instructions (agnostico dallo stack) - 2026-10-20 — claude-opus-5-5 — proposta del branch, approvazione del piano, riletta mirata*

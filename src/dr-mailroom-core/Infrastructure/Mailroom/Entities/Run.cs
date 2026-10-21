@@ -32,6 +32,10 @@ public class Run
     [Column("TrashReceivedBeforeUtc")]
     public DateTime? TrashReceivedBeforeUtc { get; set; }
 
+    /// <summary>Giro di cestino limitato alle mail senza allegati; false = tutte (anche per gli altri trigger).</summary>
+    [Column("TrashWithoutAttachmentsOnly")]
+    public bool TrashWithoutAttachmentsOnly { get; set; }
+
     [Column("Status")]
     public RunStatus Status { get; set; } = RunStatus.Running;
 

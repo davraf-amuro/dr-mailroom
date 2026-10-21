@@ -228,7 +228,8 @@ public class RunOrchestrator(
             }
 
             // Leggo da DB le mail del mittente ancora da cestinare
-            var candidates = await messageProvider.GetTrashCandidatesAsync(run.MailboxId, sender, run.TrashReceivedBeforeUtc, cancellationToken);
+            var candidates = await messageProvider.GetTrashCandidatesAsync(
+                run.MailboxId, sender, run.TrashReceivedBeforeUtc, run.TrashWithoutAttachmentsOnly, cancellationToken);
             found = candidates.Count;
 
             using var session = gmailTrasher.OpenSession(tokenProtector.Unprotect(encryptedTrashToken));

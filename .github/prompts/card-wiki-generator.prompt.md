@@ -213,4 +213,4 @@ curl -u [username]:[password] [BaseUrl]/[health-endpoint]
 - [ ] Sezione Intervento Rapido con comandi concreti (server, db, user reali)
 - [ ] Footer con data e LLM presente
 
-*Template v1.1 - Operational Wiki Card - Token-optimized for AI agents* - Last Update 2026-10-09 - claude-opus-5-5
+*Prompt v1.1 - Operational Wiki Card - 2026-10-09 — claude-opus-5-5 — footer nel formato unico (2026-10-20)*

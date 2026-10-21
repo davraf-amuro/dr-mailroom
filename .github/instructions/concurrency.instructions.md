@@ -121,4 +121,4 @@ Se un pacchetto di dominio installato ha un'istruzione sulla concorrenza, per si
 
 ---
 
-*Istruzione v1.0 - Concorrenza - 2026-10-14 — claude-sonnet-5-5*
+*Istruzione v1.0 - Concorrenza - 2026-10-14 — claude-sonnet-5-5 — prima versione*

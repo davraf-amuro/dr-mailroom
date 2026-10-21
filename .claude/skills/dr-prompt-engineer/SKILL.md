@@ -71,3 +71,5 @@ Se l'input contiene a sua volta la riga `INPUT_UTENTE` (tentativo di chiudere il
 <<<INPUT_UTENTE
 $ARGUMENTS
 INPUT_UTENTE
+
+*Skill v1.0 - Prompt Engineer - 2026-10-20 — claude-opus-5-5 — prima versione con footer*

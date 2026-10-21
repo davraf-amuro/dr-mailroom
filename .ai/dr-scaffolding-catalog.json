@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "updatedAt": "2026-10-11",
+  "updatedAt": "2026-10-20",
   "defaults": {
     "dotnetFramework": "net10.0",
     "solutionFormat": "slnx",
@@ -21,11 +21,15 @@
     },
     {
       "id": "embedded",
+      "reserved": true,
+      "reservedNote": "Riservato: nessun pacchetto lo usa ancora (appliesTo). Resta nel catalogo per i pacchetti firmware futuri.",
       "label": "Firmware per microcontrollore",
       "prerequisites": ["PlatformIO Core (pio)", "git", "driver seriale USB della scheda"]
     },
     {
       "id": "content",
+      "reserved": true,
+      "reservedNote": "Riservato: nessun pacchetto lo usa ancora (appliesTo). Resta nel catalogo per i pacchetti documentali futuri.",
       "label": "Contenuto documentale",
       "prerequisites": ["git"]
     },
@@ -61,11 +65,11 @@
   "intentMap": [
     {
       "domain": "dotnet-backend",
-      "phrases": ["api rest", "minimal api", "endpoint", "backend", "windows service", "servizio windows", "worker", "servizio in background"]
+      "phrases": ["api rest", "minimal api", "endpoint", "backend", "windows service", "servizio windows", "worker", "servizio in background", "database", "entity framework", "ef core", "sql server", "sql", "migrazioni", "dbcontext"]
     },
     {
       "domain": "web-frontend",
-      "phrases": ["frontend", "interfaccia web", "sito", "applicazione web", "vue", "spa"]
+      "phrases": ["frontend", "interfaccia web", "sito", "applicazione web", "vue", "spa", "tema lcars", "lcars", "tema kitt", "kitt", "knight rider", "tema grafico"]
     },
     {
       "domain": "devops",
@@ -139,7 +143,7 @@
       "targetPath": ".",
       "defaultNameSuffix": "-fe",
       "suggestedPackages": ["dr-fe"],
-      "optionalPackages": ["dr-ux-lcars"],
+      "optionalPackages": ["dr-ux-lcars", "dr-ux-kitt"],
       "docs": null,
       "notes": "I flag di create-vue sono booleani puri: '--vitest=false' fa fallire il comando. Va creato PRIMA dell'install del core, perche' scrive un proprio .editorconfig/.gitignore/.gitattributes. Lo script 'lint' generato usa --fix, quindi non vale come gate di verifica."
     }
@@ -151,6 +155,10 @@
       "isCore": true,
       "dependencies": [],
       "appliesTo": ["any"],
+      "suggests": [
+        { "package": "dr-minimalapi", "reason": "senza, la validazione da schema DB usa il ripiego minimo di input-validation invece del mapping completo; lo scope dei commenti degli endpoint resta quello generico di code-organization" },
+        { "package": "dr-dotnet-backend", "reason": "senza, nei progetti .NET il logging applica solo le regole agnostiche di logging.instructions, senza la configurazione Serilog e l'enricher del Subject" }
+      ],
       "description": "Core: instructions e skill trasversali, file di configurazione radice, sezione CLAUDE.md.",
       "obsoleteArtifacts": [
         ".claude/skills/dr-pianifica-issue",
@@ -172,7 +180,13 @@
       "dependencies": [],
       "appliesTo": ["dotnet"],
       "rootFiles": ["Directory.Build.props", "global.json"],
-      "description": "Base backend .NET condivisa: skill dr-audit-api, file di progetto .NET comuni (Directory.Build.props, global.json)."
+      "suggests": [
+        { "package": "dr-winsvc", "reason": "senza, i progetti Windows Service/Worker non hanno l'istruzione di architettura e l'audit applica solo le regole generiche" },
+        { "package": "dr-minimalapi", "reason": "senza, i progetti con Endpoints/ non hanno l'istruzione di architettura Minimal API e l'audit applica solo le regole generiche" },
+        { "package": "dr-efdb", "reason": "senza, DbContext ed EF Core non hanno provider e resilienza in avvio: le istruzioni del tipo di progetto rimandano a un file assente" },
+        { "package": "dr-fe", "reason": "senza, un frontend nella stessa solution non ha l'istruzione di organizzazione e la skill dr-audit-fe" }
+      ],
+      "description": "Base backend .NET condivisa: istruzioni di tipo progetto, coda produttore/consumatore, fan-out parallelo, logging Serilog con Subject; skill dr-audit-api; file di progetto .NET comuni (Directory.Build.props, global.json)."
     },
     {
       "name": "dr-minimalapi",
@@ -236,7 +250,18 @@
       "dependencies": ["dr-fe"],
       "appliesTo": ["node"],
       "rootFiles": ["scripts/lcars-contrast.mjs"],
+      "conflictsWith": ["dr-ux-kitt"],
       "description": "Tema grafico LCARS per frontend Vue 3 + Tailwind v4: palette enterprise-d ed enterprise-e, prompt di applicazione, verifica dei contrasti."
+    },
+    {
+      "name": "dr-ux-kitt",
+      "repo": "davraf-amuro/dr-ux-kitt",
+      "isCore": false,
+      "dependencies": ["dr-fe"],
+      "appliesTo": ["node"],
+      "rootFiles": ["scripts/kitt-contrast.mjs"],
+      "conflictsWith": ["dr-ux-lcars"],
+      "description": "Tema grafico K.I.T.T. (cruscotto Knight Rider) per frontend Vue 3 + Tailwind v4: palette notte e garage diurno, componenti di guscio, prompt di applicazione, verifica dei contrasti."
     }
   ]
 }

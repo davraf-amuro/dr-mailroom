@@ -11,7 +11,7 @@ Scopo: regole obbligatorie per progetti Minimal API .NET 10. Segui sempre. Testo
 - Tinyhelpers.AspNetCore (installare sempre)
 - Scalar per docs (no Swagger UI)
 - Asp.Versioning.Mvc.ApiExplorer (obbligatorio per Scalar)
-- Serilog (opzionale — chiedi in fase di raccolta informazioni; se confermato, segui sezione "Serilog — configurazione completa")
+- Serilog (obbligatorio — `dr-dotnet-backend` è dipendenza di questo pacchetto, quindi `serilog-logging.instructions.md` è sempre installato; segui sezione "Serilog — configurazione completa")
 - Entity Framework Core 10: se già presente nel `.csproj`, dichiaralo e prosegui senza chiedere. Chiedi solo se assente.
 - Autenticazione/autorizzazione: **solo se esplicitamente richiesta dal developer** — nessun pattern auth di default. Se richiesta, segui la sezione "Autenticazione": lo schema dipende dal tipo di client, non è una scelta libera
 - Aggiungi sempre il file launchSettings.json con configurazione per IIS Express e Kestrel
@@ -25,9 +25,8 @@ Prima di creare qualsiasi file, raccogli tutto in **un unico messaggio**, nell'o
 
 1. **Nome entità + campi** — se il task coinvolge un'entità e non sono specificati
 2. **Nome progetto** — se non ricavabile dal contesto: proponi `<nomecartella>.api` in lowercase come default (es. cartella `test-test/` → proponi `test-test.api`) e attendi conferma. **Non inventare e non procedere senza risposta.**
-3. **Serilog** — chiedi se aggiungere Serilog. Se sì: configura scrittura su file + console (vedi sezione "Serilog — configurazione completa"). Se no: usa `ILogger` built-in di ASP.NET Core.
-4. **Autenticazione** — chiedi se il progetto prevede **utenti umani con login** (registrazione, profilo, cambio password). Se sì: applica la sezione "Autenticazione", che determina lo schema in base ai client. Se no: non proporre auth — nessun pacchetto, nessun middleware.
-5. **Connessione DB** — solo se MCP db-schema attivo e sono disponibili più connessioni
+3. **Autenticazione** — chiedi se il progetto prevede **utenti umani con login** (registrazione, profilo, cambio password). Se sì: applica la sezione "Autenticazione", che determina lo schema in base ai client. Se no: non proporre auth — nessun pacchetto, nessun middleware.
+4. **Connessione DB** — solo se MCP db-schema attivo e sono disponibili più connessioni
 
 Regola assoluta: se il nome progetto non è ricavabile né confermato, **fermati**. Non inferire, non usare placeholder come `MyApi` o `WebApi`.
 
@@ -44,6 +43,7 @@ Regola assoluta: se il nome progetto non è ricavabile né confermato, **fermati
   - Dto/
   - Endpoints/
   - Infrastructure/Provider/{Entities,Filters,*DbContext.cs,*Provider.cs}
+  - Infrastructure/Logging/ (richiesta da `serilog-logging.instructions.md`)
   - Services/
   - Transformers/
   - Validators/
@@ -54,7 +54,7 @@ Regola assoluta: se il nome progetto non è ricavabile né confermato, **fermati
 
 ## ⚠️ Vincoli critici (leggere prima dei pattern)
 
-**Regola 13 — Commenti obbligatori**: tutti i `public` method di provider/service/handler/validator richiedono `///` XML doc + commento inline su ogni operazione DB. Esclusi: getter/setter banali, wrapper di una riga. Non generare codice senza questi commenti.
+**Commenti obbligatori** (regola 13 delle "Regole core"): `///` XML doc + commento inline su ogni operazione DB in provider/service/handler/validator. Non generare codice senza questi commenti.
 
 **EF traducibilità**: le `Projection` usano **esclusivamente** new-initializer con accesso a membri primitivi (`e.Id`, `e.Nome`). Metodi extension (`e.ToDto()`) e qualsiasi chiamata a funzione non sono EF-traducibili → causano full table scan silente. Se in dubbio, usa solo `e.Campo`.
 
@@ -65,7 +65,7 @@ Regola assoluta: se il nome progetto non è ricavabile né confermato, **fermati
 2) URL standard: api/v{version:apiVersion}/{gruppo}/{comando?}
 3) Usa route group con WithTags + WithApiVersionSet + MapToApiVersion
 4) Versioning: UrlSegmentApiVersionReader + ApiExplorer GroupNameFormat='v'VVV + SubstituteApiVersionInUrl=true
-5) Parametri handler: route -> query (o [AsParameters] se >2) -> body -> servizi DI -> CancellationToken ultimo
+5) Parametri handler: route -> query (o [AsParameters] se >2 parametri) -> body -> servizi DI -> CancellationToken ultimo
 6) OpenAPI metadata completo — **ogni endpoint** richiede obbligatoriamente:
    - `WithSummary("...")` — descrizione breve (max 10 parole)
    - `WithDescription("...")` — descrizione estesa per i consumer
@@ -87,7 +87,7 @@ Regola assoluta: se il nome progetto non è ricavabile né confermato, **fermati
    - Ogni DTO record espone `static Expression<Func<TEntity, TDto>> Projection => e => new(...)` — EF-traducibile
    - **DTO multipli obbligatori**: per ogni entity genera almeno due DTO record con Projection — `<Entity>Dto` completo (tutti i campi) e `<Entity>SummaryDto` ridotto (chiave + campi identificativi). Esponi `GET /` con il DTO completo e `GET /summary` con il ridotto — stesso filter, stesso provider, selector diverso
    - **Ogni DTO record in file separato**: `Dto/<Entity>Dto.cs` e `Dto/<Entity>SummaryDto.cs` — mai due record nello stesso file, anche se correlati (segui `code-organization.instructions.md` Regola 1, vale anche per i record)
-   - Handler usa `[AsParameters]` se filtro ha ≥ 2 campi
+   - Handler usa `[AsParameters]` se filtro ha > 2 campi (stessa soglia della regola 5 e di `dr-audit-api`)
    - Il filtro ha sempre un validator `<Entity>FilterValidator : IValidator<<Entity>Filter>` con regole **ereditate dai metadati dell'entità** (es. `varchar(50)` → maxLength 50); l'handler valida prima della query → 400; `Produces(400)` anche sui GET con filtro. Vedi `input-validation.instructions.md`
    - Provider: `Get<Entity>Async<TDto>(<Entity>Filter filter, Expression<Func<TEntity, TDto>> selector, CancellationToken ct)` — mai GetAllAsync senza filtro
    - Chiamata handler: tramite Service (vedi regola 12) — il Service passa `MyDto.Projection` al provider
@@ -101,8 +101,8 @@ Regola assoluta: se il nome progetto non è ricavabile né confermato, **fermati
 Se nel progetto è disponibile un MCP server `db-schema`, riconoscilo così: (1) i suoi tool sono esposti nella sessione; oppure (2) è registrato in `.mcp.json` (radice progetto, ignorato da git), `.vscode/mcp.json`, `.claude/settings.json` o `~/.claude/settings.json` (chiave `mcpServers`, o `servers` in `.vscode/mcp.json`):
 
 1. **Non chiedere i campi all'utente** — leggi la struttura dalla tabella:
-   - Usa `mcp__db-schema__use_connection` per selezionare la connessione
-   - Usa `mcp__db-schema__get_view_columns` o strumento equivalente per ottenere colonne e tipi
+   - Usa il tool del server che seleziona la connessione attiva (il nome esatto dipende dal client: cercalo fra i tool esposti, non assumerlo)
+   - Usa il tool che elenca colonne e tipi di una tabella o vista per ottenere struttura e nullabilità
 2. **Presenta il piano di lavoro** con la struttura letta:
    - Elenca colonne rilevate, tipo C# mappato, se nullable
    - Dichiara: "Struttura rilevata via MCP db-schema. Procedo con piano."
@@ -115,22 +115,17 @@ Se nel progetto è disponibile un MCP server `db-schema`, riconoscilo così: (1)
    - Campi con regole non determinabili dallo schema → nessun errore per quel campo + commento `// TODO: validazione`
    - Non chiedere regole all'utente: genera subito, codice compilabile e funzionante.
 
-Se `db-schema` non è trovato: dichiara "db-schema non trovato in <posizioni controllate>" e chiedi i campi all'utente prima di procedere.
+Se `db-schema` non è trovato: dichiara "db-schema non trovato in <posizioni controllate>" e chiedi i campi all'utente prima di procedere. Se il core `dr-guidelines` è installato, `mcp-server-discovery.instructions.md` descrive come proporne l'installazione (`setup.ps1` di `davraf-amuro/dr-mcp-dbschema`, solo `win-x64`, SQL Server): si installa solo dopo conferma dell'utente.
 
 ---
 
 ## Serilog — configurazione completa
 
-Applica solo se confermato nella raccolta informazioni iniziale.
+Applica sempre.
 
-**Pacchetti NuGet da aggiungere:**
-```
-Serilog.AspNetCore
-Serilog.Sinks.File
-Serilog.Sinks.Console
-```
+**Pacchetti, configurazione, enricher e soggetto del log:** segui `serilog-logging.instructions.md` (pacchetto `dr-dotnet-backend`) — è la **fonte unica** della configurazione Serilog. Non duplicare qui varianti alternative: due configurazioni divergenti per lo stesso stack generano codice incoerente.
 
-**Configurazione (Program.cs, template di output, enrichers ThreadId/TaskId):** segui `logging.instructions.md` — è la **fonte unica** della configurazione Serilog. Non duplicare qui varianti alternative: due configurazioni divergenti per lo stesso stack generano codice incoerente.
+In sintesi: livelli, sink e template nella sezione `Serilog` di `appsettings.json` (sovrascrivibili con variabili d'ambiente quando l'API gira in container), enricher in `Program.cs`. Se l'utente indica un soggetto (es. l'ID dell'entità dell'endpoint), ogni handler che lo tratta apre `LogSubject.Begin` come prima istruzione.
 
 **Cartella logs — aggiungere a `.gitignore`:**
 ```
@@ -550,7 +545,8 @@ builder.Services.AddScoped<ModelKitService>();
 - [ ] File .http aggiunto per endpoint nuovi
 - [ ] `.vscode/launch.json` e `tasks.json` creati con `type: coreclr`
 - [ ] `appsettings.json` contiene solo valori fake/placeholder per dati sensibili, mai credenziali reali
-- [ ] Se Serilog confermato: configurazione conforme a `logging.instructions.md` (fonte unica), `logs/` in .gitignore
+- [ ] Serilog: configurazione conforme a `serilog-logging.instructions.md` (fonte unica), sezione `Serilog` in `appsettings.json`, `logs/` in .gitignore
+- [ ] Soggetto del log indicato dall'utente: `LogSubject.Begin` all'inizio di ogni handler che lo tratta
 
 ## 🎯 Criteri di successo (verificare prima di iniziare)
 
@@ -564,5 +560,5 @@ Se una risposta è NO → chiedi chiarimenti all'utente prima di procedere.
 ## Test
 - Aggiungi sempre un file .http per endpoint nuovi
 
-*Template v2.8 - .NET 10 - Token-optimized for AI agents* - Last Update 2026-10-14 — claude-opus-5-5 — ricerca di db-schema anche in .mcp.json e .vscode/mcp.json (dr-minimalapi#5); rimandi a dr-efdb, dr-fe e dr-devops condizionali al manifest (dr-minimalapi#1, #3); migrazione di DataProtectionKeys prima delle repliche (dr-minimalapi#2); rimando ModelKit allineato all'esempio di dr-efdb; nome skill dr-create-launch-profiles
+*Template v2.10 - .NET 10 - Token-optimized for AI agents* - Last Update 2026-10-20 — claude-opus-5-5 — audit suite: Serilog obbligatorio (non più opzionale), `Infrastructure/Logging/` nella struttura, "Regola 13" unificata, soglia `[AsParameters]` > 2, nomi dei tool MCP neutri con rimando all'installazione di `db-schema`. v2.9: Serilog: fonte unica `serilog-logging.instructions.md` (`dr-dotnet-backend`), configurazione da `appsettings.json`, soggetto del log. v2.8: ricerca di db-schema anche in .mcp.json e .vscode/mcp.json (dr-minimalapi#5); rimandi a dr-efdb, dr-fe e dr-devops condizionali al manifest (dr-minimalapi#1, #3); migrazione di DataProtectionKeys prima delle repliche (dr-minimalapi#2); rimando ModelKit allineato all'esempio di dr-efdb; nome skill dr-create-launch-profiles
 

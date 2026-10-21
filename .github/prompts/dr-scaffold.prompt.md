@@ -225,7 +225,7 @@ Per il frontend: lo script `lint` generato da `create-vue` usa `--fix` (corregge
 
 **9. Passi finali:**
 
-- Se tra i pacchetti c'è `dr-efdb`, **proponi** di registrare il server MCP `db-schema` in `.mcp.json`: senza quel tool lo scaffolding CRUD (`docs/scaffolding-crud.md`) deve chiedere i campi a mano.
+- Se tra i pacchetti c'è `dr-efdb`, **proponi** di installare il server MCP `db-schema` ([davraf-amuro/dr-mcp-dbschema](https://github.com/davraf-amuro/dr-mcp-dbschema)) con il suo `setup.ps1` (`-Client vscode` per Copilot): comandi e limiti in `mcp-server-discovery.instructions.md`, sezione "Server già disponibili nella suite". Senza quel tool lo scaffolding CRUD (`docs/scaffolding-crud.md`) deve chiedere i campi a mano.
 - Genera `launch.json`/`tasks.json` seguendo `dr-create-launch-profiles` (o la procedura equivalente), non a mano qui.
 - Se è stato creato un `.code-workspace`, ricorda di aprirlo: le istruzioni e le skill installate vengono caricate all'apertura.
 
@@ -285,19 +285,39 @@ dotnet add <targetPath>\<consumatore>\<consumatore>.csproj reference <targetPath
 ## Sezione C — Installa i pacchetti dr-* in un progetto esistente
 
 1. **Guard:** se la cartella corrente contiene sia `dr-guidelines-install.ps1` sia `dr-guidelines-install-lib.ps1` (o è un pacchetto dominio), fermati: "Sei in un repo sorgente dr-*: i pacchetti non si installano dentro se stessi."
-2. Verifica di essere alla **root del repository** (`.git` nella cartella corrente). In una sottocartella → fermati: i file del core sono letti solo dalla root.
-3. Rileva lo stack per filtrare i pacchetti per `appliesTo`:
+2. **Unità di installazione = root del repository git.** I file del core sono letti solo dalla root: un `.csproj` in `src/` e un `package.json` in `web/` dello stesso repo condividono le stesse linee guida.
+3. **Mappa il workspace.** Cartelle candidate: `folders[]` di un `*.code-workspace` nella cartella corrente o nella padre, e le sottocartelle fino a 2 livelli che contengono `.git` (escludi `node_modules`, `bin`, `obj`, `dist`). Per ognuna trova la root git (`git -C <cartella> rev-parse --show-toplevel`), elimina i duplicati e applica il guard del punto 1: un repo sorgente `dr-*` si scarta.
+4. Rileva lo stack **di ogni repo** (fino a 3 livelli sotto la root) per filtrare i pacchetti per `appliesTo`:
 
 | Segnale | Stack |
 |---|---|
 | `*.csproj` / `*.sln` / `*.slnx` | `dotnet` |
-| `package.json` senza `.csproj` | `node` |
-| Entrambi | multi-stack |
+| `package.json` con dipendenza `vue`, `react`, `vite`, `next` o `@angular/core` | `node` |
+| `package.json` con solo tooling (husky, commitlint, tailwind, prettier) in un repo .NET | non è frontend: ignoralo e dichiaralo |
 | `Workers/*.cs` | orientato a `dr-winsvc` |
 | `Endpoints/*.cs` | orientato a `dr-minimalapi` |
 
-4. Leggi `.ai/dr-guidelines-packages.json` (assente = nessun pacchetto installato, normale al primo giro) e marca ogni pacchetto come: già installato · consigliato · opzionale · suggerito. Il core `dr-guidelines` va sempre incluso se manca. **Suggerito** = voce di `suggests[]` di un pacchetto scelto o già installato, assente dal manifest: con `appliesTo` compatibile con lo stack rilevato va nella selezione **non preselezionato**, con accanto il `reason`; incompatibile → una riga informativa, senza domanda. Un suggerito non si installa mai senza che l'utente lo scelga.
-5. Mostra la selezione, chiedi una conferma, poi:
+5. **Classifica il workspace** ed esegui solo il comportamento prescritto:
+
+| Caso | Segnale | Comportamento |
+|---|---|---|
+| A — repo singolo, stack singolo | 1 root git, 1 stack | target = quel repo |
+| B — multi-repo | ≥ 2 root git | target = repo della cartella corrente; gli altri si offrono al punto 7, mai preselezionati |
+| C — monorepo misto | 1 root git con `dotnet` **e** `node` | fermati e chiedi con il testo qui sotto |
+| D — contenitore | la cartella corrente non è dentro nessun repo ma ne contiene | non installare nel contenitore: elenca i repo e chiedi su quale lavorare, poi prosegui come caso B |
+
+Cartella corrente sotto la root di un repo → il target resta la root git: dillo e chiedi conferma. Ambiguità vera (repo annidati, submodule, root non determinabile) → mostra cosa hai trovato e chiedi.
+
+Caso C, rispondi esattamente:
+
+"Questo repository contiene backend e frontend. Le istruzioni di `dr-fe` e `dr-minimalapi` valgono per tutti i file del repo (`applyTo: \"**\"`) e possono entrare in conflitto. Scegli: (a) solo i pacchetti backend, (b) solo i pacchetti frontend, (c) entrambi, accettando la sovrapposizione."
+
+6. Per **ogni repo** leggi `.ai/dr-guidelines-packages.json` (assente = nessun pacchetto installato, normale al primo giro) e marca ogni pacchetto, filtrato per lo stack **di quel repo**, come: già installato · consigliato · opzionale · suggerito. Lo stack di un altro repo non conta: un repo frontend accanto non porta `dr-fe` nel repo dell'API. Il core `dr-guidelines` va sempre incluso se manca. **Suggerito** = voce di `suggests[]` di un pacchetto scelto o già installato, assente dal manifest: con `appliesTo` compatibile con lo stack del repo va nella selezione **non preselezionato**, con accanto il `reason`; incompatibile → una riga informativa, senza domanda. Un suggerito non si installa mai senza che l'utente lo scelga.
+7. Mostra una tabella per repo, poi chiedi due conferme distinte:
+   1. i pacchetti per il **repo target**
+   2. solo nel caso B: «Installare le linee guida anche in questi repository?» — lista numerata dei repo con i pacchetti proposti, **nessun default**: l'utente risponde con i numeri, oppure `0` per nessuno. Un repo non scelto non si tocca.
+
+   Poi, un ciclo per ogni repo confermato (il target per primo):
 
 ```powershell
 Push-Location <root-repo>
@@ -314,9 +334,9 @@ Push-Location <root-repo>
 Pop-Location
 ```
 
-Un pacchetto che fallisce (rete, credenziali): riporta l'errore e **continua** con i successivi. Nessun `-Update` qui: in questa sezione si **aggiunge**. Per aggiornare pacchetti già installati si usa `dr-get-latest` (install con `-Update`).
+Un pacchetto che fallisce (rete, credenziali): riporta l'errore e **continua** con i successivi; un repo che fallisce non blocca gli altri. Nessun `-Update` qui: in questa sezione si **aggiunge**. Per aggiornare pacchetti già installati si usa `dr-get-latest` (install con `-Update`). Mai installare in una cartella senza `.git`.
 
-6. Riepiloga: pacchetti installati, falliti con motivo, e — quando pertinente — la proposta `db-schema` in `.mcp.json` se è entrato `dr-efdb` e il promemoria di riavviare l'IDE perché le skill appena installate vengano caricate.
+8. Riepiloga una riga per repo: pacchetti installati, falliti con motivo, repo saltati o scartati. Poi, quando pertinente, aggiungi la proposta `db-schema` in `.mcp.json` se è entrato `dr-efdb` e il promemoria di riavviare l'IDE perché le skill appena installate vengano caricate.
 
 ---
 
@@ -360,4 +380,4 @@ In `CLAUDE.md` l'installer inserisce solo la sezione tra `<!-- dr-guidelines -->
 - [ ] `dotnet format` eseguito dopo l'install del core
 - [ ] Verifiche della sezione eseguite, esiti riportati
 
-*Template v1.3 — 2026-09-22 — claude-opus-5 — root del repository distinta dalle cartelle di progetto (issue #3)*
+*Prompt v1.5 - Scaffold - 2026-10-20 — claude-opus-5-5 — Sezione C: mappa del workspace per root git, casi multi-repo, monorepo misto e contenitore*

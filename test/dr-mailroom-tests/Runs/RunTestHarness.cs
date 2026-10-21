@@ -127,13 +127,13 @@ public sealed class RunTestHarness : IAsyncDisposable
     /// <summary>Crea un giro come farebbe l'API ed eseguilo come farebbe il job on-demand.</summary>
     public async Task<Run> RunAsync(
         int mailboxId, RunTrigger trigger, int? filterId = null, string? processes = null, string? senderAddress = null,
-        DateTime? trashReceivedBeforeUtc = null)
+        DateTime? trashReceivedBeforeUtc = null, bool trashWithoutAttachmentsOnly = false)
     {
         long runId;
         await using (var scope = Services.CreateAsyncScope())
         {
             runId = await scope.ServiceProvider.GetRequiredService<RunProvider>()
-                .CreateRunAsync(mailboxId, trigger, filterId, processes, senderAddress, CancellationToken.None, trashReceivedBeforeUtc);
+                .CreateRunAsync(mailboxId, trigger, filterId, processes, senderAddress, CancellationToken.None, trashReceivedBeforeUtc, trashWithoutAttachmentsOnly);
         }
 
         await using (var scope = Services.CreateAsyncScope())

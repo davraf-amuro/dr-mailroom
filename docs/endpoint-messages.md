@@ -28,10 +28,10 @@ Tutti gli endpoint richiedono la chiave API nell'header `x-api-key`.
 | Dominio | `MessageTextExtractor` (in `src/dr-mailroom-core/Processes/`) | Dal `.eml` al testo: intestazioni, poi text/plain o l'HTML convertito |
 | Filtro | `SenderMessageFilter` (in `.../Mailroom/Filters/`) | Casella, mittente, ricerca nell'oggetto, data limite, verso, pagina |
 | Entity | `Message`, `ExtractedAttachment`, `ArchivedMessageContent` | Mail, allegato salvato, contenuto archiviato |
-| DTO | `SenderMessageDto` | `id`, `subject`, `receivedAtUtc`, `labels`, `hasAttachments` |
+| DTO | `SenderMessageDto` | `id`, `gmailMessageId`, `subject`, `receivedAtUtc`, `labels`, `hasAttachments` |
 | DTO | `SenderMessagePageDto` | `items`, `page`, `pageSize`, `totalCount` |
 | DTO | `AttachmentDto` | `id`, `partId`, `originalFileName`, `relativePath`, `sizeBytes`, `sha256`, `savedAtUtc` |
-| DTO | `TrashSenderRequest` / `TrashSenderStartedDto` | body `mailboxId`, `senderAddress`, `receivedBeforeUtc` / risposta `runId`, `messagesToTrash` |
+| DTO | `TrashSenderRequest` / `TrashSenderStartedDto` | body `mailboxId`, `senderAddress`, `receivedBeforeUtc`, `withoutAttachmentsOnly` / risposta `runId`, `messagesToTrash` |
 
 Accesso DB: sì. Servizi esterni: Gmail, solo per "Elimina tutte" (scope `gmail.modify`, token separato).
 
@@ -39,10 +39,10 @@ Accesso DB: sì. Servizi esterni: Gmail, solo per "Elimina tutte" (scope `gmail.
 
 | Metodo | URL | Descrizione | Parametri | Risposta |
 |---|---|---|---|---|
-| GET | `/api/v1/messages` | Mail di un mittente in una casella | Query: `mailboxId` (obbligatorio), `senderAddress` (obbligatorio, max 320), `search` (facoltativo, max 1000), `receivedBeforeUtc` (facoltativo, istante UTC, estremo escluso), `sortDir` (`Asc`\|`Desc`, default `Desc`), `page` (da 1, default 1), `pageSize` (1–100, default 25) | 200 `SenderMessagePageDto` · 400 parametri non validi · 404 casella inesistente |
+| GET | `/api/v1/messages` | Mail di un mittente in una casella | Query: `mailboxId` (obbligatorio), `senderAddress` (obbligatorio, max 320), `search` (facoltativo, max 1000), `receivedBeforeUtc` (facoltativo, istante UTC, estremo escluso), `withoutAttachmentsOnly` (facoltativo, `true` = solo mail senza allegati), `sortDir` (`Asc`\|`Desc`, default `Desc`), `page` (da 1, default 1), `pageSize` (1–100, default 25) | 200 `SenderMessagePageDto` · 400 parametri non validi · 404 casella inesistente |
 | GET | `/api/v1/messages/{id}/attachments` | Allegati salvati di una mail | Route: `id` (long) | 200 `List<AttachmentDto>` · 404 se la mail non esiste o non ha allegati salvati |
 | GET | `/api/v1/messages/{id}/content` | Contenuto archiviato di una mail | Route: `id` (long) · Query: `format` (`eml`\|`txt`, obbligatorio, maiuscole indifferenti) | 200 file (`application/octet-stream` per `eml`, `text/plain; charset=utf-8` per `txt`) · 400 formato mancante o non valido · 404 mail inesistente o cestinata, contenuto non archiviato, file non più sul disco · 409 `.eml` non leggibile |
-| POST | `/api/v1/messages/trash-sender` | "Elimina tutte": avvia il giro che sposta nel cestino le mail ricevute dal mittente | Body: `mailboxId`, `senderAddress` (max 320), `receivedBeforeUtc` (facoltativo, istante UTC, estremo escluso) | 202 `TrashSenderStartedDto` · 400 · 404 casella inesistente · 409 casella non attiva, cestino non autorizzato, niente da cestinare o casella occupata |
+| POST | `/api/v1/messages/trash-sender` | "Elimina tutte": avvia il giro che sposta nel cestino le mail ricevute dal mittente | Body: `mailboxId`, `senderAddress` (max 320), `receivedBeforeUtc` (facoltativo, istante UTC, estremo escluso), `withoutAttachmentsOnly` (facoltativo, `true` = solo mail senza allegati) | 202 `TrashSenderStartedDto` · 400 · 404 casella inesistente · 409 casella non attiva, cestino non autorizzato, niente da cestinare o casella occupata |
 
 ### Note sulla griglia delle mail
 
@@ -54,6 +54,8 @@ Accesso DB: sì. Servizi esterni: Gmail, solo per "Elimina tutte" (scope `gmail.
 - **Indice**: la query usa l'indice esistente `(MailboxId, SenderAddress, ReceivedAtUtc)`.
 - **Mail cestinate**: quelle spostate nel cestino con "Elimina tutte" (`TrashedAtUtc` valorizzato) non compaiono.
 - **`receivedBeforeUtc`**: solo le mail ricevute prima di quell'istante. Il frontend lo usa per contare le mail di "Elimina tutte" fino a una data.
+- **`withoutAttachmentsOnly`**: solo le mail senza allegati. Il frontend lo usa per contare le mail di "Elimina senza 📎".
+- **`gmailMessageId`**: id Gmail della mail; il frontend ci costruisce il link "Apri in Gmail" (`https://mail.google.com/mail/u/?authuser=<casella>#all/<gmailMessageId>`).
 
 ### Note sul contenuto archiviato
 
@@ -66,6 +68,7 @@ Accesso DB: sì. Servizi esterni: Gmail, solo per "Elimina tutte" (scope `gmail.
 
 - **Quali mail**: quelle ricevute dal mittente nella casella e non ancora cestinate. Le mail inviate a quell'indirizzo (`IsSent`) restano. La ricerca per oggetto della griglia non conta: vale per tutte.
 - **Fino a una data**: con `receivedBeforeUtc` vanno nel cestino solo le mail ricevute prima di quell'istante, le successive restano. Per "fino al 1 gennaio 2026 compreso" il frontend invia l'inizio del 2 gennaio in ora locale (`2026-01-01T23:00:00Z` in Italia). Il limite è salvato su `Run.TrashReceivedBeforeUtc` e restituito in `RunDto.trashReceivedBeforeUtc`. Se nessuna mail rientra nel limite, la risposta è 409 "niente da cestinare".
+- **Solo senza allegati** ("Elimina senza 📎"): con `withoutAttachmentsOnly: true` restano le mail con allegati (`Message.HasAttachments`). Il flag è salvato su `Run.TrashWithoutAttachmentsOnly` e restituito in `RunDto.trashWithoutAttachmentsOnly`; si combina con `receivedBeforeUtc`.
 - **Dove finiscono**: nel cestino di Gmail, recuperabili da Gmail per 30 giorni. dr-mailroom non elimina mai definitivamente in Gmail e non offre un "ripristina".
 - **Autorizzazione**: senza il token del cestino il servizio risponde 409. Il frontend legge `MailboxDto.trashAuthorized` e, se serve, porta l'utente al consenso con `GET /api/v1/mailboxes/{id}/trash-authorization`.
 - **Avanzamento**: si segue con `GET /api/v1/runs/{runId}`. `messagesRead` = mail trovate, `messagesProcessed` = mail già nel cestino, aggiornati a ogni blocco.
@@ -150,6 +153,7 @@ x-api-key: {{apiKey}}
   "items": [
     {
       "id": 4812,
+      "gmailMessageId": "18c2f0a1b2c3d4e5",
       "subject": "Promozione d'autunno",
       "receivedAtUtc": "2026-10-02T08:14:00Z",
       "labels": "INBOX,CATEGORY_PROMOTIONS",
@@ -165,4 +169,4 @@ x-api-key: {{apiKey}}
 Per gli altri casi d'uso fare riferimento a `src/dr-mailroom-api/dr-mailroom-api.http`.
 
 ---
-*Revisione v1.3 — 2026-10-13 23:05 — claude-opus-5-5*
+*Revisione v1.4 — 2026-10-21 22:45 — claude-opus-5-5 — `withoutAttachmentsOnly`, `gmailMessageId`*

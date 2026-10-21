@@ -102,6 +102,7 @@ public class StatsProvider(MailroomDbContext context, ILogger<StatsProvider> log
                 SenderAddress = g.Key,
                 MailCount = g.Count(),
                 SentCount = g.Count(m => m.IsSent),
+                AttachmentCount = g.Count(m => m.HasAttachments),
                 FirstReceivedAtUtc = g.Min(m => m.ReceivedAtUtc),
                 LastReceivedAtUtc = g.Max(m => m.ReceivedAtUtc),
             });
@@ -117,6 +118,7 @@ public class StatsProvider(MailroomDbContext context, ILogger<StatsProvider> log
                     .FirstOrDefault(),
                 r.MailCount,
                 r.SentCount,
+                r.AttachmentCount,
                 r.FirstReceivedAtUtc,
                 scope.Where(m => m.SenderAddress == r.SenderAddress)
                     .OrderBy(m => m.ReceivedAtUtc).ThenBy(m => m.Id)
@@ -192,6 +194,8 @@ public class StatsProvider(MailroomDbContext context, ILogger<StatsProvider> log
         public int MailCount { get; init; }
 
         public int SentCount { get; init; }
+
+        public int AttachmentCount { get; init; }
 
         public DateTime FirstReceivedAtUtc { get; init; }
 

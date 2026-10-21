@@ -400,7 +400,7 @@ namespace dr_mailroom_core.Infrastructure.Mailroom.Migrations
 
                     b.HasIndex("MailboxId", "SenderAddress", "ReceivedAtUtc");
 
-                    SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("MailboxId", "SenderAddress", "ReceivedAtUtc"), new[] { "Subject", "IsSent", "TrashedAtUtc" });
+                    SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("MailboxId", "SenderAddress", "ReceivedAtUtc"), new[] { "Subject", "IsSent", "HasAttachments", "TrashedAtUtc" });
 
                     b.HasIndex("MailboxId", "SenderAddress", "YearMonth");
 
@@ -510,6 +510,10 @@ namespace dr_mailroom_core.Infrastructure.Mailroom.Migrations
                     b.Property<DateTime?>("TrashReceivedBeforeUtc")
                         .HasColumnType("datetime2")
                         .HasColumnName("TrashReceivedBeforeUtc");
+
+                    b.Property<bool>("TrashWithoutAttachmentsOnly")
+                        .HasColumnType("bit")
+                        .HasColumnName("TrashWithoutAttachmentsOnly");
 
                     b.Property<string>("Trigger")
                         .IsRequired()

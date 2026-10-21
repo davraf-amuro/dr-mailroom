@@ -26,9 +26,9 @@ public class MessageConfiguration : IEntityTypeConfiguration<Message>
         builder.HasIndex(e => new { e.MailboxId, e.GmailMessageId }).IsUnique();
         builder.HasIndex(e => new { e.MailboxId, e.SenderAddress, e.YearMonth });
 
-        // Panoramica mittenti: raggruppamento per indirizzo, prima/ultima mail, il loro oggetto, le inviate e le cestinate senza accedere alla tabella
+        // Panoramica mittenti: raggruppamento per indirizzo, prima/ultima mail, il loro oggetto, le inviate, quelle con allegati e le cestinate senza accedere alla tabella
         builder.HasIndex(e => new { e.MailboxId, e.SenderAddress, e.ReceivedAtUtc })
-            .IncludeProperties(e => new { e.Subject, e.IsSent, e.TrashedAtUtc });
+            .IncludeProperties(e => new { e.Subject, e.IsSent, e.HasAttachments, e.TrashedAtUtc });
 
         // Purga delle cestinate oltre la ritenzione
         builder.HasIndex(e => e.TrashedAtUtc).HasFilter("[TrashedAtUtc] IS NOT NULL");

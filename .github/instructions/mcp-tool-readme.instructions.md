@@ -37,9 +37,9 @@ Passi per generare token/API key.
 git clone ... tools/nome-tool
 (cd + npm install  ← solo per tool Node.js)
 
-Snippet .mcp.json con placeholder.
+Snippet .mcp.json (Claude Code) e .vscode/mcp.json (GitHub Copilot, chiave "servers") con placeholder.
 
-"Poi riavvia Claude Code per caricare il server."
+"Poi riavvia l'agente (Claude Code: nuova sessione; VS Code: ricarica la finestra) per caricare il server."
 
 ## Esempi d'uso
 
@@ -65,8 +65,8 @@ Un esempio per ogni tool, nel formato:
 ### Sezione "Aggiungere al progetto"
 - **Node.js**: `git clone` + `cd` + `npm install`
 - **dotnet**: solo `git clone` (il build avviene automaticamente al primo avvio)
-- Snippet `.mcp.json` con valori placeholder (mai valori reali)
-- Chiudere sempre con: `Poi riavvia Claude Code per caricare il server.`
+- Snippet `.mcp.json` (Claude Code) con valori placeholder (mai valori reali); se il tool supporta Copilot, anche lo snippet `.vscode/mcp.json` (chiave `servers`)
+- Chiudere sempre con: `Poi riavvia l'agente (Claude Code: nuova sessione; VS Code: ricarica la finestra) per caricare il server.`
 
 ### Sezione "Esempi d'uso"
 - Un sottotitolo `###` per ogni tool esposto
@@ -80,4 +80,4 @@ Un esempio per ogni tool, nel formato:
 - Sezioni vuote o placeholder non compilati
 - Dettagli implementativi interni
 
-*Template v1.0 - MCP Tool README - 2026-03-27 — claude-sonnet-4-6*
+*Istruzione v1.1 - MCP Tool README - 2026-10-20 — claude-opus-5-5 — snippet e riavvio anche per GitHub Copilot*

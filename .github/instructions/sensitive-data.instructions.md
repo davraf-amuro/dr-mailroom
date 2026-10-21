@@ -20,15 +20,16 @@ Per qualsiasi file di configurazione con dati sensibili:
 
 Per `appsettings.local.json` in progetti .NET: verifica che sia caricato in `Program.cs` con `AddJsonFile("appsettings.local.json", optional: true)`.
 
-## Eccezione: `.mcp.json`
+## Eccezione: file di configurazione MCP
 
-`.mcp.json` segue una regola diversa rispetto agli altri file di configurazione.
+`.mcp.json` (Claude Code) e `.vscode/mcp.json` (GitHub Copilot) seguono una regola diversa rispetto agli altri file di configurazione.
 
 | File locale (valori reali) | File esempio (committato, placeholder) | In `.gitignore` |
 |---|---|---|
 | `.mcp.json` | `.mcp.example.json` | `.mcp.json` ✅ |
+| `.vscode/mcp.json` | `.vscode/mcp.example.json` | `.vscode/mcp.json` ✅ |
 
-- Il file reale `.mcp.json` va in `.gitignore`
+- Il file reale va in `.gitignore`
 - Il file committato è `.mcp.example.json` con placeholder al posto dei dati sensibili
 - Non esiste un `.mcp.local.json`
 
@@ -76,7 +77,7 @@ Anche se l'utente dice "va bene così", "è solo temporaneo", "è un ambiente di
 - [ ] Il file committato contiene solo placeholder
 - [ ] Il file locale (non tracciato) contiene i valori reali
 - [ ] Il file locale è presente in `.gitignore`
-- [ ] Per `.mcp.json`: esiste `.mcp.example.json` committato e `.mcp.json` è in `.gitignore`
+- [ ] Per `.mcp.json` / `.vscode/mcp.json`: esiste il file `example` committato e il file reale è in `.gitignore`
 - [ ] Per .NET: `appsettings.local.json` è caricato in `Program.cs`
 
-*Template v1.6 - Token-optimized for AI agents* - Last Update 2026-03-24 — claude-sonnet-4-6
+*Istruzione v1.7 - Sensitive Data - 2026-10-20 — claude-opus-5-5 — eccezione MCP estesa a `.vscode/mcp.json`*

@@ -45,6 +45,8 @@ I valori **non sensibili** stanno in `src/dr-mailroom-api/appsettings.json`. I *
 
 Ogni valore obbligatorio mancante o non valido **ferma l'avvio** con un messaggio esplicito (per esempio un cron non valido o un `RootPath` vuoto).
 
+> **Un solo key ring per database.** Se l'avvio locale (`dotnet run`) e il container usano lo stesso database, devono usare anche la stessa cartella delle chiavi. Il `KeyRingPath` locale va in `appsettings.local.json`, la cartella del container in `KEYS_HOST_PATH`. Con due cartelle diverse, una casella collegata da un ambiente non si legge dall'altro: l'errore è `The key {…} was not found in the key ring`. Il default relativo `data/keys`, con `dotnet run`, finisce in `src/dr-mailroom-api/data/keys`, che non è la cartella del container.
+
 ### Dove mettere i segreti
 
 | Ambiente | File | Formato chiavi |
@@ -192,4 +194,4 @@ dotnet format test/dr-mailroom-tests/dr-mailroom-tests.csproj --verify-no-change
 - Container: `Dockerfile`, `docker-compose.yml`, `.env.example`
 - Piano: `.ai/plans/2026-10-02-mailroom-gmail-reader/plan.md` (C7, C10, C11, D12, T6)
 
-*Revisione v1.3 — 2026-10-20 00:10 — claude-opus-5-5*
+*Revisione v1.4 — 2026-10-20 — claude-opus-5-5 — key ring unico quando locale e container condividono il DB*

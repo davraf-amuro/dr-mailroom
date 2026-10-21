@@ -128,4 +128,4 @@ Per ogni nuovo tipo di progetto:
 - [ ] Ambiente Test compilato (o dichiarato `non pubblicato`)
 - [ ] Ambiente Produzione compilato (o dichiarato `non pubblicato`)
 
-*Template v2.4 - .NET 10 - Token-optimized for AI agents* - Last Update 2026-10-09 - claude-opus-5-5
+*Prompt v2.4 - Card Project Generator - 2026-10-09 — claude-opus-5-5 — footer nel formato unico (2026-10-20)*

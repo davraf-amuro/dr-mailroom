@@ -103,7 +103,7 @@ public class RunService(
 
     /// <summary>
     /// "Elimina tutte": avvia il giro che sposta nel cestino di Gmail le mail ricevute dal mittente nella casella,
-    /// solo quelle ricevute prima di ReceivedBeforeUtc se indicato.
+    /// solo quelle ricevute prima di ReceivedBeforeUtc se indicato, solo quelle senza allegati con WithoutAttachmentsOnly.
     /// 404 se la casella non esiste; 409 se non è attiva, se il cestino non è autorizzato, se non c'è nulla da cestinare
     /// o se la casella ha già un giro in corso.
     /// </summary>
@@ -112,6 +112,7 @@ public class RunService(
         var mailboxId = request.MailboxId!.Value;
         var sender = request.SenderAddress!.Trim().ToLowerInvariant();
         var receivedBeforeUtc = UtcDates.ToUtc(request.ReceivedBeforeUtc);
+        var withoutAttachmentsOnly = request.WithoutAttachmentsOnly ?? false;
 
         // Leggo da DB lo stato della casella
         var status = await mailboxProvider.GetMailboxStatusAsync(mailboxId, cancellationToken);
@@ -132,7 +133,8 @@ public class RunService(
         }
 
         // Leggo da DB quante mail del mittente sono ancora da cestinare
-        var toTrash = await messageProvider.CountTrashCandidatesAsync(mailboxId, sender, receivedBeforeUtc, cancellationToken);
+        var toTrash = await messageProvider.CountTrashCandidatesAsync(
+            mailboxId, sender, receivedBeforeUtc, withoutAttachmentsOnly, cancellationToken);
         if (toTrash == 0)
         {
             return ServiceResult<TrashSenderStartedDto>.Conflict(ServiceMessages.NothingToTrash);
@@ -145,12 +147,12 @@ public class RunService(
 
         // Scrivo su DB il giro, poi lo affido a Quartz per l'avvio immediato
         var runId = await runProvider.CreateRunAsync(
-            mailboxId, RunTrigger.TrashSender, null, null, sender, cancellationToken, receivedBeforeUtc);
+            mailboxId, RunTrigger.TrashSender, null, null, sender, cancellationToken, receivedBeforeUtc, withoutAttachmentsOnly);
         await dispatcher.DispatchAsync(runId, cancellationToken);
 
         logger.LogInformation(
-            "Avviato giro di cestino {RunId} sulla casella {MailboxId}: {Count} mail ricevute prima di {ReceivedBeforeUtc}",
-            runId, mailboxId, toTrash, receivedBeforeUtc);
+            "Avviato giro di cestino {RunId} sulla casella {MailboxId}: {Count} mail ricevute prima di {ReceivedBeforeUtc}, solo senza allegati {WithoutAttachmentsOnly}",
+            runId, mailboxId, toTrash, receivedBeforeUtc, withoutAttachmentsOnly);
         return ServiceResult<TrashSenderStartedDto>.Ok(new TrashSenderStartedDto(runId, toTrash));
     }
 

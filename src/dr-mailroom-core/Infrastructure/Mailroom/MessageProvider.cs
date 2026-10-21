@@ -153,14 +153,14 @@ public class MessageProvider(MailroomDbContext context, ILogger<MessageProvider>
 
     /// <summary>
     /// Mail da cestinare per "Elimina tutte" (D-T1 bis): ricevute dal mittente nella casella (non inviate) e non ancora
-    /// cestinate, dalla più vecchia. Con receivedBeforeUtc solo quelle ricevute prima di quell'istante (estremo escluso).
-    /// Solo Id e id Gmail.
+    /// cestinate, dalla più vecchia. Con receivedBeforeUtc solo quelle ricevute prima di quell'istante (estremo escluso);
+    /// con withoutAttachmentsOnly solo quelle senza allegati. Solo Id e id Gmail.
     /// </summary>
     public async Task<List<TrashCandidate>> GetTrashCandidatesAsync(
-        int mailboxId, string senderAddress, DateTime? receivedBeforeUtc, CancellationToken cancellationToken)
+        int mailboxId, string senderAddress, DateTime? receivedBeforeUtc, bool withoutAttachmentsOnly, CancellationToken cancellationToken)
     {
         // Leggo da DB le mail del mittente ancora da cestinare
-        return await TrashCandidates(mailboxId, senderAddress, receivedBeforeUtc)
+        return await TrashCandidates(mailboxId, senderAddress, receivedBeforeUtc, withoutAttachmentsOnly)
             .OrderBy(m => m.Id)
             .Select(m => new TrashCandidate(m.Id, m.GmailMessageId))
             .ToListAsync(cancellationToken);
@@ -168,19 +168,23 @@ public class MessageProvider(MailroomDbContext context, ILogger<MessageProvider>
 
     /// <summary>Quante mail andrebbero nel cestino con "Elimina tutte": stesso criterio di GetTrashCandidatesAsync.</summary>
     public async Task<int> CountTrashCandidatesAsync(
-        int mailboxId, string senderAddress, DateTime? receivedBeforeUtc, CancellationToken cancellationToken)
+        int mailboxId, string senderAddress, DateTime? receivedBeforeUtc, bool withoutAttachmentsOnly, CancellationToken cancellationToken)
     {
         // Leggo da DB il numero di mail del mittente ancora da cestinare
-        return await TrashCandidates(mailboxId, senderAddress, receivedBeforeUtc).CountAsync(cancellationToken);
+        return await TrashCandidates(mailboxId, senderAddress, receivedBeforeUtc, withoutAttachmentsOnly).CountAsync(cancellationToken);
     }
 
-    /// <summary>Criterio unico di "Elimina tutte": mail ricevute dal mittente (non inviate), non cestinate, entro la data se indicata.</summary>
-    private IQueryable<Message> TrashCandidates(int mailboxId, string senderAddress, DateTime? receivedBeforeUtc)
+    /// <summary>
+    /// Criterio unico di "Elimina tutte": mail ricevute dal mittente (non inviate), non cestinate, entro la data se indicata,
+    /// senza allegati se richiesto.
+    /// </summary>
+    private IQueryable<Message> TrashCandidates(int mailboxId, string senderAddress, DateTime? receivedBeforeUtc, bool withoutAttachmentsOnly)
     {
         var sender = senderAddress.Trim().ToLowerInvariant();
         return context.Messages.Where(m =>
             m.MailboxId == mailboxId && m.SenderAddress == sender && !m.IsSent && m.TrashedAtUtc == null
-            && (receivedBeforeUtc == null || m.ReceivedAtUtc < receivedBeforeUtc));
+            && (receivedBeforeUtc == null || m.ReceivedAtUtc < receivedBeforeUtc)
+            && (!withoutAttachmentsOnly || !m.HasAttachments));
     }
 
     /// <summary>Marca come cestinate le mail indicate (già spostate nel cestino di Gmail).</summary>

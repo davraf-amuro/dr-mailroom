@@ -4,83 +4,46 @@ applyTo: "**"
 
 # Structured Logging Rules (AI Agent)
 
-Scopo: configurazione obbligatoria del logging strutturato con identificatori di contesto (thread ID, task ID). Segui sempre nei progetti .NET con Serilog.
-
-## Dipendenze NuGet
-
-```xml
-<PackageReference Include="Serilog.Enrichers.Thread" Version="4.*" />
-```
+Scopo: regole di logging valide per qualsiasi linguaggio e stack. La configurazione concreta (libreria, sink, template) sta nell'istruzione di dominio. Per .NET: controlla `.ai/dr-guidelines-packages.json`; se elenca `dr-dotnet-backend` segui `serilog-logging.instructions.md`, altrimenti applica solo le regole di questo file con il logger strutturato del linguaggio e dichiara che manca la configurazione di dominio.
 
 ## Regole core (sempre)
 
-1. Ogni evento di log deve includere `{ThreadId}` (ID thread gestito) e `{TaskId}` (ID task async, `-` se non in contesto Task)
-2. Usa `.Enrich.WithThreadId()` per il thread ID (da `Serilog.Enrichers.Thread`)
-3. Usa `.Enrich.With<TaskIdEnricher>()` per il task ID (custom enricher, vedi pattern)
-4. I template Console e File devono entrambi esporre `T:{ThreadId}` e `A:{TaskId}`
-5. Non usare `Thread.CurrentThread.ManagedThreadId` direttamente nel messaggio di log: usa l'enricher
-6. Non usare string interpolation per includere thread/task nei messaggi: usa placeholder strutturati
+1. Logging strutturato: il messaggio è un template con placeholder nominati, i valori passano come argomenti
+2. Mai interpolazione o concatenazione di stringhe dentro il messaggio di log
+3. Mai dati sensibili nei log (credenziali, token, dati personali): segui `sensitive-data.instructions.md`
+4. Contesto ricorrente (thread, task, richiesta, soggetto) aggiunto dal meccanismo di contesto della libreria (enricher, scope, MDC, context var), non ripetuto a mano in ogni messaggio
+5. Configurazione dei log (livelli, destinazioni, formato) esterna al codice e sovrascrivibile per ambiente, così un programma in container cambia comportamento senza ricompilare
 
-## Template consigliati
+## Soggetto del log
 
-### Console
-```
-{Timestamp:HH:mm:ss} [{Level:u3}] T:{ThreadId} A:{TaskId} {Message:lj}{NewLine}{Exception}
-```
+Il **soggetto** è l'entità su cui lavora un flusso, scelta dall'utente: il valore di un campo come un ID, un Codice o un altro identificativo. Serve a isolare con un solo filtro tutti i log che riguardano quell'entità.
 
-### File (rolling giornaliero)
-```
-{Timestamp:yyyy-MM-dd HH:mm:ss} [{Level:u3}] T:{ThreadId} A:{TaskId} {Message:lj}{NewLine}{Exception}
-```
+Quando l'utente individua un soggetto (nel task, nel brief, nel piano):
 
-## Pattern richiesti (copiabili)
+1. Ogni evento di log del flusso lo riporta, compresi quelli scritti dai componenti chiamati
+2. Proprietà strutturata con **nome fisso** `Subject`, valore `<Campo>=<valore>` (es. `OrderId=42`, `Codice=ART-0042`)
+3. Si imposta **una volta**, all'ingresso del flusso (richiesta, messaggio, elemento elaborato), con il meccanismo di contesto della libreria; si chiude all'uscita del flusso
+4. Mai concatenato nel testo del messaggio: sta nella proprietà, non nel template
+5. Senza soggetto, la proprietà vale `-`: la colonna è sempre presente e il formato non cambia
+6. Nei formati testuali (console, file) ha uno slot fisso: `S:{Subject}`
+7. Un flusso, un soggetto. Contesti annidati: vince il più interno
+8. Il nome del campo è uno solo in tutto il codice (costante), così il filtro non cambia da un punto all'altro
 
-### Program.cs — configurazione Serilog completa
-```csharp
-builder.Services.AddSerilog((_, lc) => lc
-    .MinimumLevel.Information()
-    .MinimumLevel.Override("Microsoft.EntityFrameworkCore", LogEventLevel.Warning)
-    .Enrich.WithThreadId()
-    .Enrich.With<TaskIdEnricher>()
-    .WriteTo.Console(outputTemplate:
-        "{Timestamp:HH:mm:ss} [{Level:u3}] T:{ThreadId} A:{TaskId} {Message:lj}{NewLine}{Exception}")
-    .WriteTo.File(
-        path: "logs/app-.log",
-        rollingInterval: RollingInterval.Day,
-        outputTemplate:
-        "{Timestamp:yyyy-MM-dd HH:mm:ss} [{Level:u3}] T:{ThreadId} A:{TaskId} {Message:lj}{NewLine}{Exception}"));
-```
+Soggetto non chiaro (quale campo, quale flusso) → chiedi all'utente, non sceglierlo per supposizione.
 
-### TaskIdEnricher.cs
-```csharp
-using Serilog.Core;
-using Serilog.Events;
+### Isolare i log di un soggetto
 
-internal sealed class TaskIdEnricher : ILogEventEnricher
-{
-    public void Enrich(LogEvent logEvent, ILogEventPropertyFactory factory) =>
-        logEvent.AddPropertyIfAbsent(
-            factory.CreateProperty("TaskId", Task.CurrentId?.ToString() ?? "-"));
-}
-```
+| Destinazione | Filtro |
+|--------------|--------|
+| File o console testuale | testo `S:OrderId=42 ` (lo spazio finale esclude `OrderId=420`) |
+| Sink strutturato (Seq, Elasticsearch, Loki, GELF) | `Subject = 'OrderId=42'` |
 
-Posizionare in `Infrastructure/Logging/TaskIdEnricher.cs` (`internal sealed` — non modificare la visibilità).
+## ✅ Checklist Post-Generazione
 
-## Errori comuni (rapidi)
+- [ ] Messaggi con placeholder, nessuna interpolazione o concatenazione
+- [ ] Nessun dato sensibile nei log
+- [ ] Configurazione dei log esterna al codice e sovrascrivibile per ambiente
+- [ ] Soggetto indicato dall'utente: proprietà `Subject` = `<Campo>=<valore>` impostata all'ingresso del flusso, `-` quando assente, slot `S:{Subject}` nei formati testuali
+- [ ] Istruzione di dominio seguita per la configurazione concreta (.NET con `dr-dotnet-backend`: `serilog-logging.instructions.md`), oppure ripiego dichiarato
 
-- `{ThreadId}` non appare nel log → `.Enrich.WithThreadId()` non chiamato o pacchetto non installato
-- `{TaskId}` sempre `-` → normale per codice non in contesto `Task` (es. codice sincrono in `Main`)
-- Template con `{Properties}` al posto di `{ThreadId}` → mostra tutti i campi enriched, verboso, da evitare in produzione
-- `Task.CurrentId` è `null` fuori da un `Task` esplicito: il fallback `"-"` nell'enricher è obbligatorio
-
-## ✅ Checklist Post-Configurazione
-
-- [ ] `Serilog.Enrichers.Thread` aggiunto al `.csproj`
-- [ ] `.Enrich.WithThreadId()` presente nella configurazione Serilog
-- [ ] `TaskIdEnricher.cs` creato in `Infrastructure/Logging/` come `internal sealed`
-- [ ] `.Enrich.With<TaskIdEnricher>()` presente nella configurazione Serilog
-- [ ] Template Console include `T:{ThreadId} A:{TaskId}`
-- [ ] Template File include `T:{ThreadId} A:{TaskId}`
-- [ ] Nessun thread/task ID inserito manualmente nei messaggi di log via placeholder custom o string interpolation
-
-*Template v1.0 - Logging - Token-optimized for AI agents* - Last Update 2026-05-29 — claude-sonnet-4-6
+*Istruzione v2.1 - Logging - 2026-10-20 — claude-opus-5-5 — rimando a `serilog-logging` condizionale al manifest, con ripiego dichiarato*
