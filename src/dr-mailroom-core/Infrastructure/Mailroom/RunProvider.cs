@@ -25,8 +25,8 @@ public class RunProvider(
     }
 
     /// <summary>
-    /// Crea un giro in stato Running e ne restituisce l'Id; senderAddress e trashReceivedBeforeUtc solo per il cestino
-    /// di un mittente.
+    /// Crea un giro in stato Running e ne restituisce l'Id; senderAddress, trashReceivedBeforeUtc e
+    /// trashWithoutAttachmentsOnly solo per il cestino di un mittente.
     /// </summary>
     public async Task<long> CreateRunAsync(
         int mailboxId,
@@ -35,7 +35,8 @@ public class RunProvider(
         string? requestedProcesses,
         string? senderAddress,
         CancellationToken cancellationToken,
-        DateTime? trashReceivedBeforeUtc = null)
+        DateTime? trashReceivedBeforeUtc = null,
+        bool trashWithoutAttachmentsOnly = false)
     {
         var run = new Run
         {
@@ -45,6 +46,7 @@ public class RunProvider(
             RequestedProcesses = requestedProcesses,
             SenderAddress = senderAddress,
             TrashReceivedBeforeUtc = trashReceivedBeforeUtc,
+            TrashWithoutAttachmentsOnly = trashWithoutAttachmentsOnly,
             Status = RunStatus.Running,
             StartedAtUtc = DateTime.UtcNow,
         };

@@ -25,6 +25,9 @@ public class SenderMessageFilter
     /// <summary>Solo le mail ricevute prima di questo istante UTC (estremo escluso): conteggio di "Elimina tutte" fino a una data.</summary>
     public DateTime? ReceivedBeforeUtc { get; set; }
 
+    /// <summary>Solo le mail senza allegati: conteggio di "Elimina senza allegati".</summary>
+    public bool? WithoutAttachmentsOnly { get; set; }
+
     /// <summary>Verso dell'ordinamento per data di ricezione; default Desc (dalla più recente).</summary>
     public SortDirection? SortDir { get; set; }
 
@@ -39,5 +42,6 @@ public class SenderMessageFilter
           && (MailboxId == null || e.MailboxId == MailboxId)
           && (SenderAddress == null || e.SenderAddress == SenderAddress)
           && (Search == null || (e.Subject != null && e.Subject.Contains(Search)))
-          && (ReceivedBeforeUtc == null || e.ReceivedAtUtc < ReceivedBeforeUtc);
+          && (ReceivedBeforeUtc == null || e.ReceivedAtUtc < ReceivedBeforeUtc)
+          && (WithoutAttachmentsOnly != true || !e.HasAttachments);
 }

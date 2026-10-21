@@ -2,12 +2,13 @@ using dr_mailroom_core.Infrastructure.Mailroom;
 
 namespace dr_mailroom_api.Dto;
 
-/// <summary>Mittente (per indirizzo) con numero di mail, quante sono posta inviata, la più vecchia e la più recente (data e oggetto).</summary>
+/// <summary>Mittente (per indirizzo) con numero di mail, quante sono posta inviata, quante hanno allegati, la più vecchia e la più recente (data e oggetto).</summary>
 public record SenderOverviewDto(
     string SenderAddress,
     string? SenderName,
     int MailCount,
     int SentCount,
+    int AttachmentCount,
     DateTime FirstReceivedAtUtc,
     string? FirstSubject,
     DateTime LastReceivedAtUtc,
@@ -18,6 +19,7 @@ public record SenderOverviewDto(
         row.SenderName,
         row.MailCount,
         row.SentCount,
+        row.AttachmentCount,
         row.FirstReceivedAtUtc,
         row.FirstSubject,
         row.LastReceivedAtUtc,

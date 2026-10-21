@@ -32,7 +32,7 @@ public sealed class TrashSenderRunTests : IAsyncDisposable
     }
 
     /// <summary>Aggiunge mail indicizzate: count dal mittente indicato, con prefisso dell'id Gmail.</summary>
-    private async Task AddMessagesAsync(string sender, int count, string prefix, bool isSent = false, DateTime? trashedAtUtc = null)
+    private async Task AddMessagesAsync(string sender, int count, string prefix, bool isSent = false, DateTime? trashedAtUtc = null, bool hasAttachments = false)
     {
         await using var db = _harness.Db.CreateDbContext();
         for (var i = 0; i < count; i++)
@@ -46,6 +46,7 @@ public sealed class TrashSenderRunTests : IAsyncDisposable
                 ReceivedAtUtc = new DateTime(2026, 10, 1, 8, 0, 0, DateTimeKind.Utc).AddMinutes(i),
                 IsSent = isSent,
                 TrashedAtUtc = trashedAtUtc,
+                HasAttachments = hasAttachments,
             });
         }
 
@@ -104,6 +105,23 @@ public sealed class TrashSenderRunTests : IAsyncDisposable
         Assert.Equal(["spam-0", "spam-1"], Assert.Single(_harness.Trasher.Batches[TrashToken]));
         var kept = (await MessagesAsync()).Where(m => m.TrashedAtUtc == null).Select(m => m.GmailMessageId);
         Assert.Equal(["spam-2", "spam-3"], kept);
+    }
+
+    [Fact]
+    public async Task TrashSender_WithoutAttachmentsOnly_KeepsMailWithAttachmentsAsync()
+    {
+        await AddMailboxAsync();
+        await AddMessagesAsync(Spammer, 2, "plain-");
+        await AddMessagesAsync(Spammer, 2, "att-", hasAttachments: true);
+
+        var run = await _harness.RunAsync(MailboxId, RunTrigger.TrashSender, senderAddress: Spammer, trashWithoutAttachmentsOnly: true);
+
+        Assert.Equal(RunStatus.Completed, run.Status);
+        Assert.True(run.TrashWithoutAttachmentsOnly);
+        Assert.Equal(2, run.MessagesProcessed);
+        Assert.Equal(["plain-0", "plain-1"], Assert.Single(_harness.Trasher.Batches[TrashToken]));
+        var kept = (await MessagesAsync()).Where(m => m.TrashedAtUtc == null).Select(m => m.GmailMessageId);
+        Assert.Equal(["att-0", "att-1"], kept);
     }
 
     [Fact]

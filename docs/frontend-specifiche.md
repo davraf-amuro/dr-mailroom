@@ -240,6 +240,8 @@ Ogni giro con `status = Running` ha il pulsante **"Annulla"**; sopra la cronolog
 
 Una tabella da `GET /api/v1/runs`, dal più recente. Filtri: `mailboxId`, `trigger`, `status`, `startedAtUtcFrom`, `startedAtUtcTo`.
 
+La cronologia **non si carica all'apertura**: i filtri partono con "Avviati dal" = 7 giorni fa e la lettura parte solo con **"Carica"**. Fino ad allora la vista mostra "Cronologia non caricata". Fanno eccezione i giri della riapplica (`?runIds=`), mostrati subito.
+
 | Colonna | Campo |
 |---|---|
 | Avvio / fine | `startedAtUtc`, `endedAtUtc` |
@@ -381,4 +383,4 @@ Sono tutti i path esposti dalla Fase 15 (`/openapi/v1.json`).
 - Codice: `src/dr-mailroom-api/Endpoints/`, `src/dr-mailroom-api/Dto/`, `src/dr-mailroom-api/Validators/`, `src/dr-mailroom-api/Services/MailboxService.cs`
 - Architettura: [architettura.md](architettura.md)
 
-*Revisione v1.5 — 2026-10-11 21:47 — claude-opus-5-5*
+*Revisione v1.6 — 2026-10-21 22:50 — claude-opus-5-5 — cronologia su richiesta*

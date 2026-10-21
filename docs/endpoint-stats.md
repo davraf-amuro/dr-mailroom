@@ -71,6 +71,7 @@ Un valore non ammesso per `sortBy` o `sortDir` viene respinto con 400 già dal b
 | `senderName` | Ultimo nome visualizzato non vuoto; solo informativo |
 | `mailCount` | Mail del mittente nel periodo |
 | `sentCount` | Quante di quelle mail sono posta inviata (`Message.IsSent`: label `SENT` o mittente uguale all'indirizzo della casella). Solo segnalazione: `mailCount`, ordinamenti e `totalCount` la includono comunque (D20) |
+| `attachmentCount` | Quante di quelle mail hanno allegati (`Message.HasAttachments`). Il frontend la mostra accanto al totale: `345 (📎49)`. Anche questa esclude le cestinate |
 | `firstReceivedAtUtc`, `firstSubject` | Data e oggetto della mail più vecchia |
 | `lastReceivedAtUtc`, `lastSubject` | Data e oggetto della mail più recente |
 
@@ -86,6 +87,7 @@ Una casella esistente ma senza mail (o una ricerca senza risultati) risponde **2
       "senderName": "CDJapan",
       "mailCount": 883,
       "sentCount": 0,
+      "attachmentCount": 12,
       "firstReceivedAtUtc": "2025-02-03T13:30:36",
       "firstSubject": "Game New Release Updates_2025_02_03_Mon",
       "lastReceivedAtUtc": "2026-10-10T12:19:32",
@@ -145,7 +147,7 @@ La panoramica non usa le viste: legge la tabella `Message` con due query.
 
 Il filtro per anno è un intervallo su `ReceivedAtUtc` (`>= 1 gennaio` e `< 1 gennaio dell'anno dopo`), non su `YearMonth`.
 
-L'indice `IX_Message_MailboxId_SenderAddress_ReceivedAtUtc` (`MailboxId`, `SenderAddress`, `ReceivedAtUtc`, con `Subject` e `IsSent` inclusi) copre raggruppamento, date, oggetti e conteggio delle inviate. È stato aggiunto dalla migration `20261010184202_SenderOverviewIndex`; `IsSent` è entrato nell'INCLUDE con `20261010220452_MessageIsSent`.
+L'indice `IX_Message_MailboxId_SenderAddress_ReceivedAtUtc` (`MailboxId`, `SenderAddress`, `ReceivedAtUtc`, con `Subject`, `IsSent`, `HasAttachments` e `TrashedAtUtc` inclusi) copre raggruppamento, date, oggetti e conteggio delle inviate e di quelle con allegati. È stato aggiunto dalla migration `20261010184202_SenderOverviewIndex`; `IsSent` è entrato nell'INCLUDE con `20261010220452_MessageIsSent`, `HasAttachments` con `20261021203059_TrashWithoutAttachments`.
 
 | Richiesta (casella da circa 38.000 mail) | Tempo misurato, al netto del trasporto |
 |---|---|
@@ -169,4 +171,4 @@ x-api-key: {{apiKey}}
 Per gli altri casi d'uso fare riferimento a `src/dr-mailroom-api/dr-mailroom-api.http`.
 
 ---
-*Revisione v1.2 — 2026-10-11 17:25 — claude-opus-5-5*
+*Revisione v1.3 — 2026-10-21 22:45 — claude-opus-5-5 — `attachmentCount` nella panoramica*
