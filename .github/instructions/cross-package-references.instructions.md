@@ -73,4 +73,4 @@ Se i due pacchetti hanno `appliesTo` diversi, la dipendenza è la scelta sbaglia
 
 ---
 
-*Istruzione v1.1 - Rimandi fra pacchetti - 2026-10-02 — claude-opus-5-5*
+*Istruzione v1.1 - Rimandi fra pacchetti - 2026-10-02 — claude-opus-5-5 — dichiarazione nel catalogo (`suggests`)*

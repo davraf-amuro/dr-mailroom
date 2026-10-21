@@ -29,7 +29,7 @@ Prima di scrivere il validator di un **body** (POST/PUT/PATCH), **chiedi al deve
 
 Se la struttura della tabella è stata letta tramite MCP `db-schema`, **non chiedere le regole di validazione** — genera il validator direttamente:
 
-- Regole inferibili dal metadato → applica subito (vedi mapping in `minimal-api-architecture.instructions.md` § "Scoperta automatica struttura DB via MCP")
+- Regole inferibili dal metadato → applica subito. Controlla `.ai/dr-guidelines-packages.json`: se elenca `dr-minimalapi`, segui il mapping di `minimal-api-architecture.instructions.md` § "Scoperta automatica struttura DB via MCP"; altrimenti ripiego minimo: colonna `NOT NULL` → obbligatorio, lunghezza massima → limite di lunghezza, tipo numerico o data → controllo di tipo. Dichiara quale dei due rami hai applicato
 - Campi con regole non determinabili → nessun errore per quel campo + commento `// TODO: validazione`
 - Il validator deve compilare ed essere funzionante da subito
 
@@ -180,4 +180,4 @@ I filtri GET (`<Entity>Filter`) ricevono dati esterni → validator obbligatorio
 - Non chiamare il validator in un endpoint filter globale: ogni endpoint ha il proprio validator specifico
 - Non riutilizzare lo stesso validator per DTO diversi anche se i campi si sovrappongono
 
-*Istruzione v1.1 - Input Validation - 2026-06-10 — claude-fable-5*
+*Istruzione v1.2 - Input Validation - 2026-10-20 — claude-opus-5-5 — rimando condizionale a `dr-minimalapi` con ripiego (cross-package-references)*

@@ -120,4 +120,4 @@ if attempts < MAX_RETRIES:
 
 ---
 
-*Istruzione v1.0 - No Hardcoded Values - 2026-07-23 — claude-opus-4-8*
+*Istruzione v1.0 - No Hardcoded Values - 2026-07-23 — claude-opus-4-8 — prima versione*

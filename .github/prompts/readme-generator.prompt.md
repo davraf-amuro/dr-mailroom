@@ -41,4 +41,4 @@ La versione template e in fondo a questo file.
 - [ ] Nessuna sezione extra
 - [ ] Footer con data e LLM
 
-*Template v1.3 - .NET 10 - Token-optimized for AI agents* - Last Update 2026-07-02 00:03 - claude-fable-5
+*Prompt v1.3 - README Generator - 2026-07-02 — claude-fable-5 — footer nel formato unico (2026-10-20)*

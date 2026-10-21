@@ -5,16 +5,16 @@
 ## Comportamento generale
 - Termine tecnico errato o impreciso → segnala gentilmente + forma corretta
 
-## Regola fondamentale — Compatibilità duale agente
+## Regola fondamentale — Agente primario e compatibilità
 
-⛔ OGNI regola, istruzione, convenzione o linea guida creata o modificata in questo progetto **deve essere compatibile sia con Claude Code che con GitHub Copilot**.
+⛔ **Claude Code è l'agente primario**: ogni regola, istruzione, convenzione o linea guida creata o modificata deve funzionare con Claude Code.
 
-- Preferire sintassi e struttura neutra, leggibile da entrambi
-- No feature esclusive di un solo tool
-- Verifica compatibilità prima di proporre o applicare regola
-- Compatibilità non garantita → **fermati, chiedi all'utente** — no assunzioni, no azione autonoma
+GitHub Copilot e Codex sono **secondari, best-effort**:
+- Nei file condivisi preferire sintassi e struttura neutra, leggibile da tutti gli agenti
+- Feature esclusiva di Claude Code in un file condiviso → ammessa solo con l'alternativa per gli altri agenti accanto, oppure con il limite dichiarato (es. "Su Copilot: <alternativa>" / "Su Copilot non disponibile")
+- Compatibilità secondaria costosa o incerta → **dichiara il limite e procedi**: non blocca il lavoro
 
-> **Esenzione — Claude Code Skills.** I file in `.claude/skills/` sono artefatti specifici di Claude Code *by design* (usano `$ARGUMENTS`, sub-agenti, `AskUserQuestion`, `EnterPlanMode`) e non sono portabili su GitHub Copilot: sono **esenti** da questa regola. La compatibilità duale resta obbligatoria per `.github/instructions/*.md`, `.github/prompts/*.prompt.md` e ogni altra regola/documento condiviso.
+> **Artefatti specifici per agente.** `.claude/skills/` (Claude Code) usa `$ARGUMENTS`, sub-agenti, `AskUserQuestion`, `EnterPlanMode` *by design*. `.agents/skills/` e `AGENTS.md` (Codex) sono **copie generate** da quelli Claude nel repo `dr-guidelines` con `scripts/sync-codex.ps1` e non si modificano a mano; nei progetti host l'installer porta `.agents/skills/`, non `AGENTS.md`. Restano condivisi `.github/instructions/*.md`, `.github/prompts/*.prompt.md` e ogni altra regola/documento non specifico di un agente.
 
 ## Standard di progetto (trasversali)
 @.github/copilot-instructions.md
@@ -38,7 +38,7 @@ No procedere finché tre passi non completati e visibili nell'output.
 ```
 File letti:
 - .github/copilot-instructions.md  ✓
-- .github/instructions/database-provider.instructions.md  ✓
+- .github/instructions/<istruzione-pertinente>.instructions.md  ✓
 ```
 
 File non letto che andava letto → dichiara `✗ non letto` e leggilo prima di procedere. No elenco visibile = no procedere.
@@ -51,47 +51,38 @@ Fonte unica: `dev-cycle.instructions.md` — Fase 0. Compila quella checklist ne
 
 ---
 
-⛔ Task con ≥ 2 operazioni (stessa soglia di `plan-tracking.instructions.md`) richiede piano approvato:
+## Piano obbligatorio su disco
 
-1. Usa `EnterPlanMode` per proporre piano
-2. Dichiara: scope, file da modificare, motivazione, perimetro negativo
-3. Attendi approvazione esplicita utente
-4. Usa `ExitPlanMode` per procedere
+⛔ Task con **≥ 2 operazioni** → piano su disco approvato prima di agire. Fonte unica: `plan-tracking.instructions.md` (soglia, definizione di "operazione", template, branch, verifica finale). Passi su Claude Code:
 
-Operazione singola → dichiarazione inline (dev-cycle Fase 1), nessun piano richiesto.
+1. Crea `.ai/plans/<YYYY-MM-DD>-<slug>/plan.md` (template di plan-tracking)
+2. `EnterPlanMode`: proponi il piano con scope, perimetro negativo e proposta di branch dedicato (`plan/<slug>`); la scelta dell'utente va nel campo `Branch:`
+3. `ExitPlanMode` = richiesta di approvazione esplicita; senza approvazione non si procede
+4. Durante l'esecuzione marca `[x]` ogni fase; a fine task verifica ogni criterio → `Stato: COMPLETATO` e dichiara `"Piano [slug] verificato. Tutti i criteri soddisfatti."`
 
-**Esenzioni** (nessun `EnterPlanMode` richiesto):
+Operazione singola → dichiarazione inline (dev-cycle Fase 1), nessun piano. Piano `IN CORSO` in `.ai/plans/` all'avvio sessione → riprendi dall'ultima fase incompleta.
+
+**Esenzioni** (nessun `EnterPlanMode`):
 - Cartella `.ai/` — piani e file di contesto si scrivono senza blocchi
-- Skill invocate esplicitamente dall'utente (es. `/dr-promote-to`, `/dr-professor`) — l'invocazione è l'approvazione; la skill segue i propri passi e le proprie conferme interne. **Non vale** se l'argomento è un brief: vedi sotto
+- Skill invocate **esplicitamente** dall'utente con `/nome` (es. `/dr-promote-to`) — l'invocazione è l'approvazione; la skill segue le proprie conferme interne. **Non vale** per le skill avviate da una frase (vedi "Invocazione automatica") né quando l'argomento è un brief
 
 ## Brief dell'utente — cartella `briefs/`
 
-`briefs/` in radice contiene le richieste che l'utente scrive in Markdown, con nome e forma liberi. L'agente non la esplora da solo: usa il brief che l'utente indica nel prompt.
-
-Brief indicato → leggilo, chiedi approfondimenti se trovi lacune o problemi, crea **sempre** il piano (anche per una sola operazione) con il link al brief sotto il titolo, ed esegui solo dopo l'approvazione esplicita dell'utente. Vale anche quando il brief è l'argomento di una skill. Regola completa: `plan-tracking.instructions.md`, sezione "Piani da un brief".
-
-## Piano obbligatorio su disco
-
-⛔ OGNI task con ≥ 2 operazioni richiede piano persistito su disco **prima** di EnterPlanMode.
-
-Segui `plan-tracking.instructions.md`:
-1. Crea `.ai/plans/<YYYY-MM-DD>-<slug>/plan.md` con obiettivo, scope, fasi, criteri di verifica
-2. Entra in EnterPlanMode e proponi piano all'utente
-3. Durante esecuzione, marca `[x]` ogni fase completata nel piano
-4. A task completato, verifica ogni criterio → aggiorna `Stato: COMPLETATO`
-5. Dichiara: `"Piano [slug] verificato. Tutti i criteri soddisfatti."`
-
-Piano `IN CORSO` in `.ai/plans/` all'avvio sessione → riprendi da ultima fase incompleta.
+Brief indicato dall'utente → piano **sempre**, anche per una sola operazione, con link al brief sotto il titolo; esecuzione solo dopo approvazione esplicita. Vale anche quando il brief è l'argomento di una skill. Regola completa: `plan-tracking.instructions.md`, sezione "Piani da un brief".
 
 ## Citazione fonti e modello
 
 Fine risposta, se letti file o consultati documenti:
 - Cita file usati come fonti (path relativo)
-- Indica modello LLM usato (es. `claude-sonnet-4-6`)
+- Indica modello LLM usato (es. `claude-opus-5-5`)
 
 ## Invocazione automatica delle skill
 
 Intento utente corrisponde a skill disponibile → **invoca direttamente** senza conferma. Usa contesto conversazione come argomento.
+
+⛔ Eccezione — invocazione dedotta da una frase (non `/nome` esplicito) di una skill che fa azioni **irreversibili o esterne** (commit, push, merge, cancellazione di branch, issue su GitHub, scrittura fuori dal repository: `/dr-promote-to`, `/dr-file-feedback`, `/dr-install-global`, `/dr-scaffold*`) → prima conferma in una riga cosa farà (es. "Eseguo commit + push + PR verso `main`?"), poi invoca. Skill che scrivono più file (`/dr-professor`, `/dr-handoff`) partite da una frase seguono la soglia del piano.
+
+Skill segnate *(se installata)* arrivano da un pacchetto di dominio: assente → dillo all'utente e indica il pacchetto (`/dr-scaffold-guidelines`).
 
 | Se l'utente dice qualcosa come... | Invoca |
 |-----------------------------------|--------|
@@ -100,13 +91,14 @@ Intento utente corrisponde a skill disponibile → **invoca direttamente** senza
 | "chiedi al tattico", "rivedi questo prompt", "migliora il prompt", "scrivi un prompt per", "perché questo prompt non funziona" | `/dr-prompt-engineer [prompt o descrizione]` |
 | "pianifica il rilascio", "prepara l'ambiente", "come si deploya", "configura Docker", "procedura di deploy" | `/dr-tech [task]` |
 | "promote", "promuovi il branch", "crea la PR verso", "merge su", "porta su master/main/staging" | `/dr-promote-to [target-branch] [--merge] [--delete]` |
-| "audit api", "fai l'audit del backend", "analizza le api", "cerca dead code", "controlla il codice backend" | `/dr-audit-api [focus opzionale]` |
-| "audit frontend", "fai l'audit del fe", "analizza il frontend", "controlla i componenti" | `/dr-audit-fe [focus opzionale]` |
+| "audit api", "fai l'audit del backend", "analizza le api", "cerca dead code", "controlla il codice backend" | `/dr-audit-api [focus opzionale]` *(se installata: dr-dotnet-backend)* |
+| "audit frontend", "fai l'audit del fe", "analizza il frontend", "controlla i componenti" | `/dr-audit-fe [focus opzionale]` *(se installata: dr-fe)* |
 | "aggiorna i pacchetti", "aggiorna le linee guida", "get-latest" | `/dr-get-latest` |
 | "segnala una miglioria", "apri una issue", "questa regola non va bene", "manca un pacchetto per" | `/dr-file-feedback [descrizione]` |
 | "controlla le issue", "pianifica le issue", "crea i piani dalle issue", "cosa c'è nelle issue aperte" | `/dr-issues-to-plans [numeri] [--repo owner/nome] [--pacchetti]` |
 | "verifica il piano", "controlla che il piano sia stato rispettato", "verifica finale" | `/dr-verify-plan` |
-| "modifica testi", "aggiorna commenti", "riscrivi il testo", "correggi il testo", "migliora la descrizione", "aggiorna la descrizione", "modifica il commento" | `/dr-professor [richiesta]` |
+| "modifica testi", "riscrivi il testo", "correggi il testo", "migliora la descrizione", "aggiorna la descrizione" (di documenti in `docs/` o README) | `/dr-professor [richiesta]` |
+| "passa le consegne", "handoff", "prepara il passaggio di consegne", "documento di passaggio" | `/dr-handoff` |
 | "aggiorna snapshot", "refresh contesto", "rigenera il riassunto", "snapshot del progetto", "aggiorna il contesto del progetto" | `/dr-snapshot` |
 | "genera i profili di avvio", "crea launch.json", "configura il debug VS Code", "launch profiles" | `/dr-create-launch-profiles [profili]` |
 | "crea una nuova solution", "parti da zero", "scaffolding", "nuovo progetto", "crea il workspace" | `/dr-scaffold [richiesta]` |

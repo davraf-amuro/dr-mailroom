@@ -4,7 +4,7 @@ applyTo: "**"
 
 # Dev Cycle — Ciclo Obbligatorio per Task AI
 
-Regole trasversali valide per qualsiasi task di sviluppo. Le istruzioni modulari specifiche (es. `minimal-api-architecture`, `database-provider`) si sovrappongono a queste senza sostituirle.
+Regole trasversali valide per qualsiasi task di sviluppo. Le istruzioni modulari dei pacchetti di dominio installati (elencati in `.ai/dr-guidelines-packages.json`) si sovrappongono a queste senza sostituirle.
 
 ---
 
@@ -38,8 +38,8 @@ Se il task richiede più file, elencali in ordine prima di iniziare.
 
 ## Fase 2: ESEGUI un'operazione alla volta
 
-- Una modifica per turno
-- Non modificare più file contemporaneamente senza averli dichiarati in Fase 1
+- Un intento per passo: una modifica alla volta, verificata prima della successiva
+- Più file nello stesso passo solo se dichiarati in Fase 1 (letture e ricerche indipendenti possono andare in parallelo)
 - Segui l'ordine dichiarato — non saltare passaggi
 
 ---
@@ -51,7 +51,7 @@ Pattern **Reason → Act → Observe** per ogni step:
 ```
 Reason  → "Devo fare X perché Y. Il prossimo passo è Z."
 Act     → [esegui la modifica]
-Observe → "Rileggo il file modificato. Il contenuto corrisponde? Sì/No."
+Observe → "Rileggo la parte modificata (o mi baso sulla conferma esatta del tool di modifica). Corrisponde? Sì/No."
           → Sì: "✓ [file] verificato. Prossimo passo: ..."
           → No: [correggi e ripeti Observe]
 ```
@@ -108,4 +108,4 @@ Se ti accorgi di aver proceduto senza verificare il file precedente:
 → Fermati. Dichiara: "Ho saltato la verifica di [file]. Torno indietro."
 → Rileggi il file saltato → verifica → poi riprendi da dove eri.
 
-*Template v1.1 - Token-optimized for AI agents* - Last Update 2026-06-10 — claude-sonnet-4-6
+*Istruzione v1.2 - Dev Cycle - 2026-10-20 — claude-opus-5-5 — esempi agnostici, passo = un intento, riletta mirata*

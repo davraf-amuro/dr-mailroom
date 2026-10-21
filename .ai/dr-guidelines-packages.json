@@ -2,23 +2,23 @@
   "installed": [
     {
       "package": "dr-guidelines",
-      "installedAt": "2026-10-16",
-      "commit": "49883b8058568967a94d2a05d8c1af9ea98f7d52"
+      "installedAt": "2026-10-21",
+      "commit": "cdd6c092ea42b14845890fb8dd541d03eb61fb0b"
     },
     {
       "package": "dr-dotnet-backend",
-      "installedAt": "2026-10-16",
-      "commit": "d9cfdd4f360e2a8470db04e924e34d94cf5f69a1"
+      "installedAt": "2026-10-21",
+      "commit": "4475089f0440fd9768633504ff379467926a0edf"
     },
     {
       "package": "dr-minimalapi",
-      "installedAt": "2026-10-16",
-      "commit": "d7b0bd3097228014374853ed560261aaf3ea0b68"
+      "installedAt": "2026-10-21",
+      "commit": "910b829a16cd13d6b883742026df4a3f1bc12669"
     },
     {
       "package": "dr-efdb",
-      "installedAt": "2026-10-16",
-      "commit": "b822eff9c458a1aa37944a91d9a454979c043836"
+      "installedAt": "2026-10-21",
+      "commit": "f294e7a48839291d401786eb7d7a0a60a0ac6feb"
     }
   ]
 }

@@ -22,11 +22,39 @@ Prima di proporre la creazione di un nuovo MCP server, l'agente **deve cercarlo*
 4. **Settings globali utente** — `~/.claude/settings.json` / `~/.claude/settings.local.json`
 5. **Repository workspace** — altri progetti aperti nell'ambiente corrente (working directories elencate nell'environment)
 6. **MCP servers già registrati nell'IDE** — configurazioni VS Code, JetBrains o altri ambienti attivi
-7. **Registry pubblici noti** — se si ha accesso a internet, cerca nel [MCP Registry ufficiale](https://github.com/modelcontextprotocol/servers) o repository GitHub/npm correlati
+7. **Server della suite `dr-*`** — elencati nella sezione [Server già disponibili nella suite](#server-già-disponibili-nella-suite): se uno copre il bisogno, si propone quello
+8. **Registry pubblici noti** — se si ha accesso a internet, cerca nel [MCP Registry ufficiale](https://github.com/modelcontextprotocol/servers) o repository GitHub/npm correlati
 
 Se il server viene trovato in uno qualsiasi di questi punti:
 - **Proponi il server trovato** all'utente, indicando dove si trova e come configurarlo per il progetto corrente.
 - Non procedere alla creazione.
+
+---
+
+### Server già disponibili nella suite
+
+Server MCP pubblicati accanto ai pacchetti `dr-*`. Questa tabella è la fonte unica del collegamento fra nome del server e repository: prompt, skill e README rimandano qui.
+
+| Nome del server | Repository | Quando proporlo |
+|---|---|---|
+| `db-schema` | [davraf-amuro/dr-mcp-dbschema](https://github.com/davraf-amuro/dr-mcp-dbschema) | Il task richiede di leggere la struttura di un database **SQL Server** (tabelle, viste, colonne), interrogarlo in sola lettura o preparare comandi DDL. È il server che `dr-efdb` suggerisce nel catalogo (`mcpSuggestion`) e che lo scaffolding CRUD usa per leggere i campi dell'entità |
+
+**Installazione di `db-schema`.** Non si scrive la configurazione a mano: la scrive lo `setup.ps1` del repository, eseguito una volta nella radice del progetto. Lo script scarica il binario dall'ultima release e ne verifica il checksum, registra il server col nome `db-schema` nel file del client scelto e crea `appsettings.local.json` con le sezioni da compilare.
+
+```powershell
+# Claude Code (.mcp.json)
+irm https://raw.githubusercontent.com/davraf-amuro/dr-mcp-dbschema/main/setup.ps1 | iex
+
+# VS Code + GitHub Copilot (.vscode/mcp.json)
+Invoke-Expression "& { $(irm https://raw.githubusercontent.com/davraf-amuro/dr-mcp-dbschema/main/setup.ps1) } -Client vscode"
+
+# Tutti i client
+Invoke-Expression "& { $(irm https://raw.githubusercontent.com/davraf-amuro/dr-mcp-dbschema/main/setup.ps1) } -Client all"
+```
+
+Prima di proporlo, dichiara i limiti: `setup.ps1` installa solo il binario `win-x64` (le release pubblicano anche `linux-x64`, ma per quello non c'è una procedura documentata: su Linux va detto all'utente, non improvvisato) e il database deve essere SQL Server raggiungibile in rete. Le operazioni DDL e `run_select` sono disattivate finché non si abilitano nella sezione `Ddl` dell'`appsettings`. Variabili, flag DDL, file da aggiungere al `.gitignore` (`tools/dr-mcp-dbschema/` e i file di configurazione del client) e risoluzione dei problemi: README di `dr-mcp-dbschema`, non questa regola.
+
+L'installazione modifica il progetto (binario in `tools/`, file di configurazione del client): si propone e si esegue solo dopo la conferma dell'utente.
 
 ---
 
@@ -86,4 +114,4 @@ Se non è possibile accedere ad alcuna fonte di ricerca (es. nessun accesso inte
 
 ---
 
-*Istruzione v1.1 - MCP Server Discovery - 2026-10-14 — claude-opus-5-5 — aggiunti `.mcp.json` e `.vscode/mcp.json` e il criterio dei tool esposti all'elenco di ricerca (davraf-amuro/dr-minimalapi#5)*
+*Istruzione v1.3 - MCP Server Discovery - 2026-10-16 — claude-opus-5-5 — sezione "Server già disponibili nella suite": `db-schema` → `davraf-amuro/dr-mcp-dbschema`, installazione con il suo `setup.ps1` (davraf-amuro/dr-guidelines#27); limite `win-x64` di `setup.ps1` precisato*

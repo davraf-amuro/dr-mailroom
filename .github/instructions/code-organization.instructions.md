@@ -156,7 +156,7 @@ Ogni funzione o metodo deve avere un commento breve (una riga) che descriva **a 
 **Scope obbligatorio**: tutte le funzioni e metodi, pubblici e privati con logica non banale.  
 **Esclusi**: getter/setter banali, wrapper di una riga, override con comportamento ovvio.
 
-> Per progetti con istruzioni modulari (es. `minimal-api-architecture`), la regola 13 di quell'istruzione definisce lo scope specifico dei commenti obbligatori.
+> Se `.ai/dr-guidelines-packages.json` elenca `dr-minimalapi`, lo scope specifico dei commenti obbligatori per gli endpoint è definito in `minimal-api-architecture.instructions.md` (regola sui commenti); altrimenti vale lo scope qui sopra. Dichiara quale delle due fonti hai applicato.
 
 ```csharp
 // ✅ C# — XML doc comment visibile in IntelliSense
@@ -234,4 +234,4 @@ const products = await productRepo.findActive();
 
 ---
 
-*Istruzione v1.4 - Code Organization - 2026-10-11 — claude-opus-5-5 — Regola 4: produttore/consumatore con coda bounded (dr-dotnet-backend#2)*
+*Istruzione v1.5 - Code Organization - 2026-10-20 — claude-opus-5-5 — rimando condizionale a `dr-minimalapi` per lo scope dei commenti*
